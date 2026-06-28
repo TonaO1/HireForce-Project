@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  wide?: boolean;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, wide }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -31,7 +32,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-md rounded-xl border border-white/15 bg-black p-6 shadow-[0_0_60px_rgba(0,0,0,0.8)]"
+        className={`relative z-10 w-full rounded-xl border border-white/15 bg-black p-6 shadow-[0_0_60px_rgba(0,0,0,0.8)] ${wide ? 'max-w-2xl' : 'max-w-md'}`}
       >
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="font-mono text-lg font-semibold tracking-tight text-white">{title}</h2>

@@ -1,13 +1,20 @@
-import { FileText } from 'lucide-react';
+import { Calendar, FileText, Loader2 } from 'lucide-react';
 import { StageStepper } from '../../components/candidate/StageStepper';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
+import { useMyApplications } from '../../hooks/useHireForce';
 
 export function MyApplicationPage() {
   const { user } = useAuth();
-  const { candidates } = useData();
-  const applications = candidates.filter((c) => user && c.email === user.email);
+  const { data: applications = [], isLoading, error } = useMyApplications(user?.email);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-white/50">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 text-white">
@@ -15,29 +22,38 @@ export function MyApplicationPage() {
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">My Applications</h1>
         <p className="mt-1 text-white/50">Track your progress through the hiring pipeline</p>
       </div>
-
-      {applications.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No applications yet"
-          description="When you apply to a role, you'll be able to track its progress through the pipeline here."
-          action={{ label: 'Browse Jobs', to: '/apply' }}
-        />
+      {error && (
+        <div className="rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm text-white">
+          {error instanceof Error ? error.message : 'Could not load applications.'}
+        </div>
+      )}
+      {applications.length === 0 && !error ? (
+        <EmptyState icon={FileText} title="No applications yet" description="When you apply to a role, you'll be able to track its progress here." action={{ label: 'Browse Jobs', to: '/apply' }} />
       ) : (
         <div className="space-y-4">
           {applications.map((application) => (
             <div key={application.id} className="panel p-6">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h2 className="font-semibold text-white">{application.roleApplied}</h2>
-                  <p className="text-sm text-white/50">
-                    Applied {new Date(application.appliedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
+              <h2 className="font-semibold text-white">{application.roleApplied}</h2>
+              <p className="text-sm text-white/50">Applied {new Date(application.appliedAt).toLocaleDateString()}</p>
               <div className="mt-5 overflow-x-auto">
                 <StageStepper currentStage={application.stage} readonly />
               </div>
+              {application.interviews.length > 0 && (
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/50">
+                    <Calendar className="h-4 w-4" />
+                    Interviews
+                  </h3>
+                  <ul className="space-y-2">
+                    {application.interviews.map((interview) => (
+                      <li key={interview.id} className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-sm">
+                        <p className="font-medium text-white">{interview.type}</p>
+                        <p className="text-white/50">{new Date(interview.scheduledAt).toLocaleString()} with {interview.interviewer}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>

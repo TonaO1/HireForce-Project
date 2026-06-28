@@ -30,16 +30,93 @@ export interface JobOpening {
   applicantCount: number;
   description: string;
   createdAt?: string;
+  applicationQuestions?: ApplicationQuestion[];
+}
+
+export type ApplicationQuestionType = 'multiple_choice' | 'free_response';
+
+export interface ApplicationQuestion {
+  id: string;
+  prompt: string;
+  type: ApplicationQuestionType;
+  options?: string[];
+}
+
+export interface ApplicationAnswer {
+  questionId: string;
+  questionPrompt: string;
+  answer: string;
+}
+
+export interface SubmitApplicationInput {
+  jobId: string;
+  name: string;
+  email: string;
+  answers?: ApplicationAnswer[];
+  resumeFileName?: string;
+  resumeUrl?: string;
+}
+
+export interface CreateJobInput {
+  title: string;
+  department?: string;
+  location?: string;
+  description?: string;
+  headcount?: number;
+  priority?: 'High' | 'Medium' | 'Low';
+  targetStartDate?: string;
+  applicationQuestions?: ApplicationQuestion[];
 }
 
 export interface Interview {
   id: string;
   candidateId: string;
+  candidateName?: string;
   scheduledAt: string;
   interviewer: string;
+  interviewerId?: string;
   feedback?: string;
   outcome?: InterviewOutcome;
   type: string;
+  status?: string;
+  score?: number;
+  strengths?: string;
+  concerns?: string;
+  evidence?: string;
+  eventId?: string;
+  calendarSynced?: boolean;
+  durationMinutes?: number;
+}
+
+export interface CreateInterviewInput {
+  candidateId: string;
+  scheduledAt: string;
+  interviewerId?: string;
+  type?: string;
+  durationMinutes?: number;
+  status?: string;
+}
+
+export interface Interviewer {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+export interface SchedulerSlot {
+  start: string;
+  end: string;
+  interviewerId?: string;
+  interviewerName?: string;
+}
+
+export interface BookSchedulerInput {
+  candidateId: string;
+  interviewId?: string;
+  start: string;
+  end: string;
+  interviewerId?: string;
+  type?: string;
 }
 
 export interface Candidate {
@@ -51,6 +128,8 @@ export interface Candidate {
   stage: PipelineStage;
   appliedAt: string;
   resumeUrl?: string;
+  resumeFileName?: string;
+  applicationAnswers?: ApplicationAnswer[];
   avatarInitials: string;
   score?: number;
   interviews: Interview[];
@@ -84,7 +163,6 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   rejected: 'Rejected',
 };
 
-// Monochrome emphasis scale (no color accents); consumed by StageBadge.
 export const STAGE_COLORS: Record<PipelineStage, string> = {
   applied: 'border-white/25 text-white/60',
   screened: 'border-white/35 text-white/75',
