@@ -5,15 +5,15 @@ const currentIndex = PIPELINE_STAGES.indexOf(demoStage);
 
 export function MyApplicationPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-white">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">My Application</h1>
-        <p className="mt-1 text-slate-500">Track your progress through the hiring pipeline</p>
+        <h1 className="font-mono text-2xl font-bold tracking-tight text-white">My Application</h1>
+        <p className="mt-1 text-white/50">Track your progress through the hiring pipeline</p>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="font-semibold text-slate-200">Senior Frontend Engineer</h2>
-        <p className="text-sm text-slate-500">Applied June 10, 2026</p>
+      <div className="panel p-6">
+        <h2 className="font-semibold text-white">Senior Frontend Engineer</h2>
+        <p className="text-sm text-white/50">Applied June 10, 2026</p>
 
         <div className="mt-8 space-y-0">
           {PIPELINE_STAGES.filter((s) => s !== 'rejected').map((stage, i) => {
@@ -25,24 +25,24 @@ export function MyApplicationPage() {
                   <div
                     className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
                       done
-                        ? 'bg-green-500 text-white'
+                        ? 'bg-white text-black'
                         : active
-                          ? 'bg-indigo-500 text-white ring-4 ring-indigo-500/30'
-                          : 'bg-slate-800 text-slate-500'
+                          ? 'bg-white text-black ring-4 ring-white/20'
+                          : 'border border-white/20 bg-black text-white/40'
                     }`}
                   >
                     {done ? '✓' : i + 1}
                   </div>
                   {i < 4 && (
-                    <div className={`h-10 w-0.5 ${done ? 'bg-green-500/50' : 'bg-slate-700'}`} />
+                    <div className={`h-10 w-0.5 ${done ? 'bg-white/40' : 'bg-white/15'}`} />
                   )}
                 </div>
                 <div className="pb-8">
-                  <p className={`font-medium ${active ? 'text-indigo-300' : 'text-slate-400'}`}>
+                  <p className={`font-medium ${active ? 'text-white' : 'text-white/50'}`}>
                     {STAGE_LABELS[stage]}
                   </p>
                   {active && (
-                    <p className="text-sm text-slate-500">You are currently in this stage</p>
+                    <p className="text-sm text-white/50">You are currently in this stage</p>
                   )}
                 </div>
               </div>

@@ -84,11 +84,12 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   rejected: 'Rejected',
 };
 
+// Monochrome emphasis scale (no color accents); consumed by StageBadge.
 export const STAGE_COLORS: Record<PipelineStage, string> = {
-  applied: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  screened: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
-  interview: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  offer: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  hired: 'bg-green-500/30 text-green-200 border-green-500/40',
-  rejected: 'bg-red-500/20 text-red-300 border-red-500/30',
+  applied: 'border-white/25 text-white/60',
+  screened: 'border-white/35 text-white/75',
+  interview: 'border-white/50 text-white/90',
+  offer: 'border-white/70 text-white',
+  hired: 'border-white bg-white text-black',
+  rejected: 'border-white/20 text-white/40',
 };

@@ -8,10 +8,11 @@ const statusIcon: Record<OnboardingStatus, typeof CheckCircle2> = {
   pending: Circle,
 };
 
+// Monochrome emphasis: brighter = further along.
 const statusColor: Record<OnboardingStatus, string> = {
-  done: 'text-green-400',
-  in_progress: 'text-amber-400',
-  pending: 'text-slate-500',
+  done: 'text-white',
+  in_progress: 'text-white/70',
+  pending: 'text-white/35',
 };
 
 export function OnboardingPage() {
@@ -25,23 +26,20 @@ export function OnboardingPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-white">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Auto-Onboarding</h1>
-        <p className="mt-1 text-slate-500">
+        <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Auto-Onboarding</h1>
+        <p className="mt-1 text-white/50">
           Tasks triggered automatically when a candidate is marked Hired
         </p>
       </div>
 
       {Object.keys(grouped).length === 0 ? (
-        <p className="text-slate-500">No onboarding flows active</p>
+        <p className="text-white/40">No onboarding flows active</p>
       ) : (
         Object.entries(grouped).map(([name, tasks]) => (
-          <section
-            key={name}
-            className="rounded-xl border border-slate-800 bg-slate-900/60 p-6"
-          >
-            <h2 className="mb-4 font-semibold text-slate-200">{name}</h2>
+          <section key={name} className="panel p-6">
+            <h2 className="mb-4 font-semibold text-white">{name}</h2>
             <ul className="space-y-3">
               {tasks.map((task) => {
                 const Icon = statusIcon[task.status];
@@ -49,8 +47,8 @@ export function OnboardingPage() {
                   <li key={task.id} className="flex items-start gap-3">
                     <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${statusColor[task.status]}`} />
                     <div>
-                      <p className="text-sm text-slate-300">{task.title}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm text-white/80">{task.title}</p>
+                      <p className="text-xs text-white/40">
                         Triggered {new Date(task.triggeredAt).toLocaleDateString()} ·{' '}
                         {task.status.replace('_', ' ')}
                       </p>

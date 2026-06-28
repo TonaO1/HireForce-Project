@@ -18,10 +18,10 @@ export function ApplicantLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
+    <div className="min-h-screen bg-black text-white">
+      <header className="border-b border-white/15 bg-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold text-slate-100">HireForce</span>
+          <span className="font-mono text-lg font-bold tracking-tight text-white">HireForce</span>
           <nav className="flex items-center gap-1">
             {navItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink
@@ -29,10 +29,10 @@ export function ApplicantLayout() {
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
+                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                     isActive
-                      ? 'bg-indigo-500/15 text-indigo-300'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-black'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
                   }`
                 }
               >
@@ -43,7 +43,8 @@ export function ApplicantLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="ml-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-red-400"
+              aria-label="Sign out"
+              className="ml-2 flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white hover:text-black"
             >
               <LogOut className="h-4 w-4" />
             </button>

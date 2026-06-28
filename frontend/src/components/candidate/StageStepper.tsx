@@ -27,19 +27,21 @@ export function StageStepper({ currentStage, onStageChange, readonly }: StageSte
               type="button"
               disabled={readonly || isTerminal}
               onClick={() => onStageChange?.(stage)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors ${
                 active
-                  ? isTerminal
-                    ? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
-                    : 'bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40'
+                  ? 'bg-white text-black ring-1 ring-white'
                   : done
-                    ? 'bg-slate-800 text-slate-400'
-                    : 'bg-slate-900 text-slate-600 hover:bg-slate-800 hover:text-slate-400'
+                    ? 'bg-white/10 text-white/80'
+                    : 'bg-black text-white/40 hover:bg-white/10 hover:text-white/80'
               } ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
             >
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                  done ? 'bg-indigo-500 text-white' : active ? 'bg-indigo-400 text-white' : 'bg-slate-700'
+                  active
+                    ? 'bg-black text-white'
+                    : done
+                      ? 'bg-white text-black'
+                      : 'bg-white/15 text-white/60'
                 }`}
               >
                 {done ? <Check className="h-3 w-3" /> : i + 1}
@@ -47,7 +49,7 @@ export function StageStepper({ currentStage, onStageChange, readonly }: StageSte
               {STAGE_LABELS[stage]}
             </button>
             {i < stages.length - 1 && (
-              <div className={`h-px w-4 ${done ? 'bg-indigo-500/50' : 'bg-slate-700'}`} />
+              <div className={`h-px w-4 ${done ? 'bg-white/50' : 'bg-white/15'}`} />
             )}
           </div>
         );
