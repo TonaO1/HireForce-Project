@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
 import { mockOnboardingTasks } from '../../data/mockData';
-import type { OnboardingStatus } from '../../types';
+import { getOnboardingTasks } from '../../lib/api';
+import type { OnboardingStatus, OnboardingTask } from '../../types';
 
 const statusIcon: Record<OnboardingStatus, typeof CheckCircle2> = {
   done: CheckCircle2,
@@ -16,13 +18,33 @@ const statusColor: Record<OnboardingStatus, string> = {
 };
 
 export function OnboardingPage() {
-  const grouped = mockOnboardingTasks.reduce(
+  const [tasks, setTasks] = useState<OnboardingTask[]>(mockOnboardingTasks);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    getOnboardingTasks()
+      .then((remoteTasks) => {
+        if (!active) return;
+        setTasks(remoteTasks);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const grouped = tasks.reduce(
     (acc, task) => {
       if (!acc[task.candidateName]) acc[task.candidateName] = [];
       acc[task.candidateName].push(task);
       return acc;
     },
-    {} as Record<string, typeof mockOnboardingTasks>,
+    {} as Record<string, OnboardingTask[]>,
   );
 
   return (
@@ -30,7 +52,7 @@ export function OnboardingPage() {
       <div>
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Auto-Onboarding</h1>
         <p className="mt-1 text-white/50">
-          Tasks triggered automatically when a candidate is marked Hired
+          Tasks triggered automatically when a candidate is marked Hired ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
         </p>
       </div>
 

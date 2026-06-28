@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { mockCandidates } from '../../data/mockData';
+import { getInterviews } from '../../lib/api';
 
 const allInterviews = mockCandidates.flatMap((c) =>
   c.interviews.map((i) => ({ ...i, candidateName: c.name, candidateId: c.id })),
@@ -8,8 +9,27 @@ const allInterviews = mockCandidates.flatMap((c) =>
 
 export function InterviewsPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'pass' | 'fail'>('all');
+  const [interviews, setInterviews] = useState(allInterviews);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
 
-  const filtered = allInterviews.filter((i) => {
+  useEffect(() => {
+    let active = true;
+    getInterviews()
+      .then((remoteInterviews) => {
+        if (!active) return;
+        setInterviews(remoteInterviews.map((interview) => ({ ...interview, candidateName: interview.candidateName || 'Candidate' })));
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filtered = interviews.filter((i) => {
     if (filter === 'all') return true;
     if (filter === 'pending') return i.outcome === 'pending' || !i.outcome;
     return i.outcome === filter;
@@ -19,7 +39,9 @@ export function InterviewsPage() {
     <div className="space-y-6 text-white">
       <div>
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Interview Tracking</h1>
-        <p className="mt-1 text-white/50">Log feedback and outcomes per candidate</p>
+        <p className="mt-1 text-white/50">
+          Log feedback and outcomes per candidate ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { InteractiveCanvas } from '../../components/workspace/InteractiveCanvas';
 import { mockCandidates, mockJobs } from '../../data/mockData';
+import { getCandidates, getJobs } from '../../lib/api';
 import { STAGE_LABELS } from '../../types';
 import type { Candidate, JobOpening } from '../../types';
 
@@ -92,10 +93,31 @@ function ApplicantCard({ candidate }: { candidate: Candidate }) {
 
 export function HRDashboardPage() {
   const [activeJob, setActiveJob] = useState<JobOpening | null>(null);
+  const [jobs, setJobs] = useState<JobOpening[]>(mockJobs);
+  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getJobs(), getCandidates()])
+      .then(([remoteJobs, remoteCandidates]) => {
+        if (!active) return;
+        setJobs(remoteJobs);
+        setCandidates(remoteCandidates);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const applicants = useMemo(
-    () => (activeJob ? mockCandidates.filter((c) => c.jobId === activeJob.id) : []),
-    [activeJob],
+    () => (activeJob ? candidates.filter((c) => c.jobId === activeJob.id) : []),
+    [activeJob, candidates],
   );
 
   return (
@@ -125,7 +147,7 @@ export function HRDashboardPage() {
             >
               <h1 className="font-mono text-xl font-semibold tracking-tight">Jobs</h1>
               <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.25em] text-white/40">
-                interactive workspace
+                {source === 'salesforce' ? 'salesforce workspace' : 'mock workspace'}
               </p>
             </motion.div>
           )}
@@ -171,7 +193,7 @@ export function HRDashboardPage() {
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
               <InteractiveCanvas
-                items={mockJobs}
+                items={jobs}
                 cardWidth={252}
                 cardHeight={176}
                 renderCard={(job) => <JobCard job={job} onOpen={() => setActiveJob(job)} />}

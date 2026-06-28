@@ -1,19 +1,55 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { mockCandidates } from '../../data/mockData';
+import { getCandidates } from '../../lib/api';
+import type { Candidate } from '../../types';
 import { PIPELINE_STAGES, STAGE_LABELS } from '../../types';
 
-const demoStage = 'interview';
-const currentIndex = PIPELINE_STAGES.indexOf(demoStage);
-
 export function MyApplicationPage() {
+  const { user } = useAuth();
+  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    getCandidates()
+      .then((remoteCandidates) => {
+        if (!active) return;
+        setCandidates(remoteCandidates);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const application = useMemo(() => {
+    return (
+      candidates.find((candidate) => candidate.email.toLowerCase() === user?.email.toLowerCase()) ||
+      candidates[0]
+    );
+  }, [candidates, user?.email]);
+
+  const currentIndex = PIPELINE_STAGES.indexOf(application?.stage ?? 'applied');
+
   return (
     <div className="space-y-6 text-white">
       <div>
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">My Application</h1>
-        <p className="mt-1 text-white/50">Track your progress through the hiring pipeline</p>
+        <p className="mt-1 text-white/50">
+          Track your progress through the hiring pipeline ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
+        </p>
       </div>
 
       <div className="panel p-6">
-        <h2 className="font-semibold text-white">Senior Frontend Engineer</h2>
-        <p className="text-sm text-white/50">Applied June 10, 2026</p>
+        <h2 className="font-semibold text-white">{application?.roleApplied ?? 'Application'}</h2>
+        <p className="text-sm text-white/50">
+          Applied {application ? new Date(application.appliedAt).toLocaleDateString() : 'not submitted yet'}
+        </p>
 
         <div className="mt-8 space-y-0">
           {PIPELINE_STAGES.filter((s) => s !== 'rejected').map((stage, i) => {
