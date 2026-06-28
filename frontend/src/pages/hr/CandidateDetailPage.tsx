@@ -137,10 +137,35 @@ export function CandidateDetailPage() {
           <ul className="space-y-4">
             {candidate.interviews.map((interview) => (
               <li key={interview.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-                <p className="font-medium">{interview.type}</p>
-                <p className="text-sm text-white/50">with {interview.interviewer} · {new Date(interview.scheduledAt).toLocaleString()}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{interview.type}</p>
+                    <p className="text-sm text-white/50">with {interview.interviewer} - {new Date(interview.scheduledAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {interview.status && <span className="badge capitalize">{interview.status}</span>}
+                    {interview.outcome && <span className="badge-strong capitalize">{interview.outcome}</span>}
+                    {interview.score != null && <span className="badge">{interview.score}/100</span>}
+                  </div>
+                </div>
                 {interview.calendarSynced && <p className="mt-1 text-xs text-white/40">Synced to Salesforce calendar</p>}
                 {interview.feedback && <p className="mt-2 text-sm text-white/60">{interview.feedback}</p>}
+                {(interview.strengths || interview.concerns || interview.evidence) && (
+                  <dl className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-md border border-white/10 bg-black p-3">
+                      <dt className="font-mono text-[10px] uppercase tracking-wider text-white/40">Strengths</dt>
+                      <dd className="mt-1 text-sm text-white/70">{interview.strengths || 'Not provided.'}</dd>
+                    </div>
+                    <div className="rounded-md border border-white/10 bg-black p-3">
+                      <dt className="font-mono text-[10px] uppercase tracking-wider text-white/40">Concerns</dt>
+                      <dd className="mt-1 text-sm text-white/70">{interview.concerns || 'Not provided.'}</dd>
+                    </div>
+                    <div className="rounded-md border border-white/10 bg-black p-3">
+                      <dt className="font-mono text-[10px] uppercase tracking-wider text-white/40">Evidence</dt>
+                      <dd className="mt-1 text-sm text-white/70">{interview.evidence || 'Not provided.'}</dd>
+                    </div>
+                  </dl>
+                )}
               </li>
             ))}
           </ul>

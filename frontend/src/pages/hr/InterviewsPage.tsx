@@ -128,8 +128,11 @@ export function InterviewsPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         {interview.candidateId ? <Link to={`/hr/candidates/${interview.candidateId}`} className="font-medium hover:underline">{interview.candidateName}</Link> : <p className="font-medium">{interview.candidateName}</p>}
-                        <p className="text-sm text-white/50">{interview.type} · {interview.interviewer}</p>
+                        <p className="text-sm text-white/50">{interview.type} - {interview.interviewer}</p>
                         <p className="text-xs text-white/40">{new Date(interview.scheduledAt).toLocaleString()}</p>
+                        <p className={`mt-1 text-xs ${interview.candidateId ? 'text-white/45' : 'text-white'}`}>
+                          {interview.candidateId ? 'Linked to Candidate/Application' : 'Unlinked interview'}
+                        </p>
                       </div>
                       <span className="badge capitalize">{interview.outcome ?? 'pending'}</span>
                     </div>
@@ -138,6 +141,9 @@ export function InterviewsPage() {
                       <select value={draft.outcome} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, outcome: e.target.value as InterviewOutcome } }))} className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm"><option value="pending">Needs Follow-up</option><option value="pass">Hire</option><option value="fail">No Hire</option></select>
                       <input type="number" min={1} max={100} value={draft.score} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, score: e.target.value } }))} placeholder="Score" className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm" />
                       <textarea value={draft.feedback} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, feedback: e.target.value } }))} placeholder="Feedback" rows={2} className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm md:col-span-3" />
+                      <textarea value={draft.strengths} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, strengths: e.target.value } }))} placeholder="Strengths" rows={2} className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm" />
+                      <textarea value={draft.concerns} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, concerns: e.target.value } }))} placeholder="Concerns" rows={2} className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm" />
+                      <textarea value={draft.evidence} onChange={(e) => setDrafts((c) => ({ ...c, [interview.id]: { ...draft, evidence: e.target.value } }))} placeholder="Evidence / job-related example" rows={2} className="rounded-md border border-white/20 bg-black px-3 py-2 text-sm" />
                     </div>
                     <div className="mt-3 flex justify-end">
                       <button type="button" disabled={savingId === interview.id} onClick={() => void saveInterview(interview)} className="btn-mono btn-mono-solid !px-3 !py-2 !text-xs">{savingId === interview.id ? 'Saving...' : 'Save Feedback'}</button>

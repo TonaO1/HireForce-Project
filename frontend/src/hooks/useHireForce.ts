@@ -35,7 +35,10 @@ const DATA_CHANGED = 'hireforce:data-changed';
 interface QueryState<T> {
   data: T | undefined;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
+  updatedAt: Date | null;
+  refetch: () => void;
 }
 
 function notifyDataChanged() {
@@ -51,12 +54,13 @@ function useApiQuery<T>(
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
   const [version, setVersion] = useState(0);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const refetch = useCallback(() => setVersion((current) => current + 1), []);
 
   useEffect(() => {
-    const refresh = () => setVersion((current) => current + 1);
-    window.addEventListener(DATA_CHANGED, refresh);
-    return () => window.removeEventListener(DATA_CHANGED, refresh);
-  }, []);
+    window.addEventListener(DATA_CHANGED, refetch);
+    return () => window.removeEventListener(DATA_CHANGED, refetch);
+  }, [refetch]);
 
   useEffect(() => {
     if (!enabled) {
@@ -70,6 +74,7 @@ function useApiQuery<T>(
       .then((result) => {
         if (!active) return;
         setData(result);
+        setUpdatedAt(new Date());
       })
       .catch((queryError) => {
         if (!active) return;
@@ -85,7 +90,7 @@ function useApiQuery<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, version, enabled]);
 
-  return { data, isLoading, error };
+  return { data, isLoading: isLoading && data === undefined, isRefreshing: isLoading && data !== undefined, error, updatedAt, refetch };
 }
 
 function useMutation<TInput, TResult>(

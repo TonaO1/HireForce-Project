@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Plus, MapPin, Users, Loader2, Trash2, ListPlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, MapPin, Users, Loader2, Trash2, ListPlus, RefreshCw } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useCandidates, useCreateJob, useJobs } from '../../hooks/useHireForce';
@@ -52,13 +52,25 @@ function toApplicationQuestions(drafts: QuestionDraft[]): ApplicationQuestion[] 
 }
 
 export function JobsPage() {
-  const { data: jobs = [], isLoading, error } = useJobs();
-  const { data: candidates = [] } = useCandidates();
+  const { data: jobs = [], isLoading, isRefreshing: jobsRefreshing, updatedAt: jobsUpdatedAt, refetch: refetchJobs, error } = useJobs();
+  const { data: candidates = [], isRefreshing: candidatesRefreshing, updatedAt: candidatesUpdatedAt, refetch: refetchCandidates } = useCandidates();
   const createJob = useCreateJob();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CreateJobInput>(EMPTY_FORM);
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [formError, setFormError] = useState('');
+  const refreshing = jobsRefreshing || candidatesRefreshing;
+  const lastUpdated = candidatesUpdatedAt || jobsUpdatedAt;
+
+  const refreshJobs = useCallback(() => {
+    refetchJobs();
+    refetchCandidates();
+  }, [refetchCandidates, refetchJobs]);
+
+  useEffect(() => {
+    window.addEventListener('focus', refreshJobs);
+    return () => window.removeEventListener('focus', refreshJobs);
+  }, [refreshJobs]);
 
   const countByJob = useMemo(() => {
     const map: Record<string, number> = {};
@@ -165,10 +177,21 @@ export function JobsPage() {
           <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Job Openings</h1>
           <p className="mt-1 text-white/50">Create and track open roles</p>
         </div>
-        <button type="button" onClick={() => setOpen(true)} className="btn-mono btn-mono-solid !px-4 !py-2 !text-sm">
-          <Plus className="h-4 w-4" />
-          New Role
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {lastUpdated && (
+            <span className="font-mono text-[11px] uppercase tracking-wider text-white/40">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
+          <button type="button" onClick={refreshJobs} disabled={refreshing} className="btn-mono btn-mono-outline !px-4 !py-2 !text-sm">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing' : 'Refresh'}
+          </button>
+          <button type="button" onClick={() => setOpen(true)} className="btn-mono btn-mono-solid !px-4 !py-2 !text-sm">
+            <Plus className="h-4 w-4" />
+            New Role
+          </button>
+        </div>
       </div>
 
       {error && (

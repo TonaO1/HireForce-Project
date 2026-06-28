@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Briefcase, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, Briefcase, Loader2, RefreshCw, Users } from 'lucide-react';
 import { InteractiveCanvas } from '../../components/workspace/InteractiveCanvas';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useCandidates, useJobs } from '../../hooks/useHireForce';
@@ -71,10 +71,39 @@ function ApplicantCard({ candidate, onOpen }: { candidate: Candidate; onOpen: ()
 }
 
 export function HRDashboardPage() {
-  const { data: jobs = [], isLoading: jobsLoading, error: jobsError } = useJobs();
-  const { data: candidates = [], isLoading: candidatesLoading } = useCandidates();
+  const {
+    data: jobs = [],
+    isLoading: jobsLoading,
+    isRefreshing: jobsRefreshing,
+    error: jobsError,
+    updatedAt: jobsUpdatedAt,
+    refetch: refetchJobs,
+  } = useJobs();
+  const {
+    data: candidates = [],
+    isLoading: candidatesLoading,
+    isRefreshing: candidatesRefreshing,
+    updatedAt: candidatesUpdatedAt,
+    refetch: refetchCandidates,
+  } = useCandidates();
   const navigate = useNavigate();
   const [activeJob, setActiveJob] = useState<JobOpening | null>(null);
+  const refreshing = jobsRefreshing || candidatesRefreshing;
+  const lastUpdated = candidatesUpdatedAt || jobsUpdatedAt;
+
+  const refreshDashboard = useCallback(() => {
+    refetchJobs();
+    refetchCandidates();
+  }, [refetchCandidates, refetchJobs]);
+
+  useEffect(() => {
+    const interval = window.setInterval(refreshDashboard, 15000);
+    window.addEventListener('focus', refreshDashboard);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshDashboard);
+    };
+  }, [refreshDashboard]);
 
   const countByJob = useMemo(() => {
     const map: Record<string, number> = {};
@@ -116,12 +145,23 @@ export function HRDashboardPage() {
             </motion.div>
           )}
         </AnimatePresence>
-        {activeJob && (
-          <button type="button" onClick={() => setActiveJob(null)} className="btn-mono btn-mono-outline !px-4 !py-2 !text-xs">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Jobs
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {lastUpdated && (
+            <span className="font-mono text-[11px] uppercase tracking-wider text-white/40">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
+          <button type="button" onClick={refreshDashboard} disabled={refreshing} className="btn-mono btn-mono-outline !px-4 !py-2 !text-xs">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing' : 'Refresh'}
           </button>
-        )}
+          {activeJob && (
+            <button type="button" onClick={() => setActiveJob(null)} className="btn-mono btn-mono-outline !px-4 !py-2 !text-xs">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Jobs
+            </button>
+          )}
+        </div>
       </div>
       <div className="relative flex-1 overflow-hidden rounded-2xl border border-white/15">
         <AnimatePresence mode="wait" initial={false}>
