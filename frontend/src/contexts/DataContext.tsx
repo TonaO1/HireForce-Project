@@ -174,8 +174,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         onboardingTasks = [
           ...titles.map((title) => ({
             id: uid('o'),
+            candidateApplicationId: candidateId,
             candidateId,
             candidateName: candidate.name,
+            jobId: candidate.jobId,
+            jobTitle: candidate.roleApplied,
             title,
             status: 'pending' as const,
             triggeredAt,

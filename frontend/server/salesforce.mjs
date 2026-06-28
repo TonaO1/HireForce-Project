@@ -94,8 +94,11 @@ export async function getCandidates() {
   `);
   const cleanRecords = records.filter((record) => !isJunkCandidate(record));
   const ids = cleanRecords.map((record) => record.Id);
-  const interviews = await getInterviewsByApplicationIds(ids);
-  return cleanRecords.map((record) => mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id)));
+  const [interviews, resumeSummaries] = await Promise.all([getInterviewsByApplicationIds(ids), getResumeSummariesByCandidateIds(ids)]);
+  return cleanRecords.map((record) => {
+    const summary = resumeSummaries[record.Id] || {};
+    return mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id), summary);
+  });
 }
 
 export async function getMyApplications(email) {
@@ -120,7 +123,13 @@ export async function getCandidate(id) {
   const interviews = await getInterviewsByApplicationIds([id]);
   const candidate = mapCandidate(records[0], interviews);
   const resumeSummary = await getResumeSummaryForCandidate(id);
-  return { ...candidate, ...resumeSummary };
+  const resumeMatchScore = resumeSummary.resumeSummary ? calculateResumeMatchScore(resumeSummary.resumeSummary, records[0]) : undefined;
+  return {
+    ...candidate,
+    ...resumeSummary,
+    score: resumeMatchScore,
+    resumeMatchScore,
+  };
 }
 
 export async function createApplication(input) {
@@ -365,13 +374,57 @@ async function ensureTalentCandidate(candidate) {
 export async function getOnboardingTasks() {
   const records = await salesforceQuery(`
     SELECT Id, Name, Task_Name__c, Candidate_Application__c, Candidate_Application__r.Name,
-           Candidate_Application__r.Email__c,
+           Candidate_Application__r.Email__c, Candidate_Application__r.Job_Opening__c,
+           Candidate_Application__r.Job_Opening__r.Name, Candidate_Application__r.Job_Opening__r.Job_Title__c,
            Status__c, Due_Date__c, CreatedDate
     FROM Onboarding_Task__c
     ORDER BY Due_Date__c ASC
     LIMIT 100
   `);
-  return dedupeOnboardingTasks(records.filter((record) => !isJunkCandidate(record.Candidate_Application__r || {})).map(mapOnboardingTask));
+  return dedupeOnboardingTasks(
+    records
+      .filter((record) => record.Candidate_Application__c && !isJunkCandidate(record.Candidate_Application__r || {}))
+      .map(mapOnboardingTask),
+  );
+}
+
+export async function getMyOnboardingTasks(email) {
+  if (!email) return [];
+  const records = await salesforceQuery(`
+    SELECT Id, Name, Task_Name__c, Candidate_Application__c, Candidate_Application__r.Name,
+           Candidate_Application__r.Email__c, Candidate_Application__r.Stage__c,
+           Candidate_Application__r.Job_Opening__c, Candidate_Application__r.Job_Opening__r.Name,
+           Candidate_Application__r.Job_Opening__r.Job_Title__c,
+           Status__c, Due_Date__c, CreatedDate
+    FROM Onboarding_Task__c
+    WHERE Candidate_Application__r.Email__c = '${escapeSoqlString(email)}'
+    ORDER BY Candidate_Application__r.Job_Opening__r.Job_Title__c, Due_Date__c ASC
+    LIMIT 100
+  `);
+  return dedupeOnboardingTasks(
+    records
+      .filter((record) => record.Candidate_Application__c && !isJunkCandidate(record.Candidate_Application__r || {}))
+      .map(mapOnboardingTask),
+  );
+}
+
+export async function updateOnboardingTaskStatus(id, status) {
+  const taskId = assertSalesforceId(id);
+  await salesforceUpdate("Onboarding_Task__c", {
+    Id: taskId,
+    Status__c: toSalesforceOnboardingStatus(status),
+  });
+  const records = await salesforceQuery(`
+    SELECT Id, Name, Task_Name__c, Candidate_Application__c, Candidate_Application__r.Name,
+           Candidate_Application__r.Email__c, Candidate_Application__r.Job_Opening__c,
+           Candidate_Application__r.Job_Opening__r.Name, Candidate_Application__r.Job_Opening__r.Job_Title__c,
+           Status__c, Due_Date__c, CreatedDate
+    FROM Onboarding_Task__c
+    WHERE Id = '${taskId}'
+    LIMIT 1
+  `);
+  if (!records[0]) throw new Error("Onboarding task not found.");
+  return mapOnboardingTask(records[0]);
 }
 
 async function getInterviewsByApplicationIds(ids) {
@@ -431,6 +484,26 @@ async function getResumeSummaryForCandidate(candidateApplicationId) {
     return { resumeParsingError: body };
   }
   return { resumeSummary: body };
+}
+
+async function getResumeSummariesByCandidateIds(candidateApplicationIds) {
+  if (!candidateApplicationIds.length) return {};
+  const records = await salesforceQuery(`
+    SELECT ParentId, Body, CreatedDate
+    FROM Note
+    WHERE ParentId IN (${candidateApplicationIds.map((id) => `'${assertSalesforceId(id)}'`).join(",")})
+    AND Title = 'HR Resume Summary'
+    ORDER BY CreatedDate DESC
+  `);
+  const summaries = {};
+  for (const record of records) {
+    if (summaries[record.ParentId]) continue;
+    const body = record.Body;
+    summaries[record.ParentId] = String(body || "").toLowerCase().startsWith("resume parsing failed")
+      ? { resumeParsingError: body }
+      : { resumeSummary: body };
+  }
+  return summaries;
 }
 
 async function upsertResumeSummaryNote(candidateApplicationId, body) {
@@ -581,7 +654,8 @@ function mapJob(record) {
   };
 }
 
-function mapCandidate(record, interviews) {
+function mapCandidate(record, interviews, resumeSummary = {}) {
+  const matchScore = resumeSummary.resumeSummary ? calculateResumeMatchScore(resumeSummary.resumeSummary, record) : undefined;
   return {
     id: record.Id,
     name: record.Name,
@@ -592,7 +666,10 @@ function mapCandidate(record, interviews) {
     appliedAt: record.Applied_Date__c || record.CreatedDate || today(),
     resumeUrl: "",
     avatarInitials: initials(record.Name),
-    score: Number(record.Touchpoint_Count__c || 0) ? Math.min(100, 60 + Number(record.Touchpoint_Count__c || 0) * 5) : undefined,
+    score: matchScore,
+    resumeMatchScore: matchScore,
+    resumeSummary: resumeSummary.resumeSummary,
+    resumeParsingError: resumeSummary.resumeParsingError,
     interviews,
     notes: record.Rejection_Reason__c ? `Rejection reason: ${record.Rejection_Reason__c}` : undefined,
   };
@@ -628,12 +705,18 @@ function mapInterview(record) {
 }
 
 function mapOnboardingTask(record) {
+  const application = record.Candidate_Application__r || {};
+  const jobTitle = application.Job_Opening__r?.Job_Title__c || application.Job_Opening__r?.Name || "Unknown role";
   return {
     id: record.Id,
+    candidateApplicationId: record.Candidate_Application__c,
     candidateId: record.Candidate_Application__c,
-    candidateName: record.Candidate_Application__r?.Name || "New hire",
+    candidateName: application.Name || "New hire",
+    jobId: application.Job_Opening__c,
+    jobTitle,
     title: record.Task_Name__c || record.Name,
     status: toOnboardingStatus(record.Status__c),
+    dueDate: record.Due_Date__c || undefined,
     triggeredAt: record.CreatedDate || record.Due_Date__c || today(),
   };
 }
@@ -706,6 +789,66 @@ function toSalesforceInterviewOutcome(outcome) {
 
 function toOnboardingStatus(status) {
   return status === "Done" ? "done" : status === "In Progress" ? "in_progress" : "pending";
+}
+
+function toSalesforceOnboardingStatus(status) {
+  return {
+    pending: "Not Started",
+    in_progress: "In Progress",
+    done: "Done",
+    "Not Started": "Not Started",
+    "In Progress": "In Progress",
+    Done: "Done",
+  }[status] || "Not Started";
+}
+
+function calculateResumeMatchScore(resumeSummary, candidateRecord) {
+  const jobText = [
+    candidateRecord.Job_Opening__r?.Job_Title__c,
+    candidateRecord.Job_Opening__r?.Name,
+    candidateRecord.Job_Opening__r?.Description__c,
+    candidateRecord.Job_Opening__r?.Department__r?.Name,
+  ].join(" ");
+  const jobKeywords = extractMatchKeywords(jobText);
+  const resumeKeywords = new Set(extractMatchKeywords(resumeSummary).map((word) => word.toLowerCase()));
+  if (!jobKeywords.length || !resumeKeywords.size) return undefined;
+  const overlap = jobKeywords.filter((word) => resumeKeywords.has(word.toLowerCase()));
+  const skillBonus = overlap.filter((word) => word.length > 6).length;
+  return Math.max(35, Math.min(100, 45 + overlap.length * 8 + skillBonus * 4));
+}
+
+function extractMatchKeywords(text = "") {
+  const stop = new Set([
+    "about",
+    "across",
+    "candidate",
+    "candidates",
+    "description",
+    "experience",
+    "including",
+    "onboarding",
+    "provided",
+    "recruiter",
+    "recruiting",
+    "responsibilities",
+    "strong",
+    "through",
+    "tools",
+    "using",
+    "with",
+    "work",
+    "workflow",
+    "workflows",
+  ]);
+  return Array.from(
+    new Set(
+      String(text)
+        .toLowerCase()
+        .split(/[^a-z0-9+#.]+/)
+        .map((word) => word.trim())
+        .filter((word) => word.length > 2 && !stop.has(word)),
+    ),
+  ).slice(0, 40);
 }
 
 function signJwt(payload, privateKey) {

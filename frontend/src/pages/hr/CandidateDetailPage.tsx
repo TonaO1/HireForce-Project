@@ -80,7 +80,12 @@ export function CandidateDetailPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="panel p-4"><Mail className="h-4 w-4 text-white/50" /><p className="mt-2 text-sm text-white/50">Email</p><p className="truncate">{candidate.email}</p></div>
         <div className="panel p-4"><Calendar className="h-4 w-4 text-white/50" /><p className="mt-2 text-sm text-white/50">Applied</p><p>{new Date(candidate.appliedAt).toLocaleDateString()}</p></div>
-        {candidate.score != null && <div className="panel p-4"><Star className="h-4 w-4" /><p className="mt-2 text-sm text-white/50">Screen Score</p><p>{candidate.score}/100</p></div>}
+        <div className="panel p-4">
+          <Star className="h-4 w-4" />
+          <p className="mt-2 text-sm text-white/50">Resume Match</p>
+          <p>{candidate.resumeMatchScore != null ? `${candidate.resumeMatchScore}/100` : 'Not available'}</p>
+          <p className="mt-1 text-[10px] uppercase tracking-wider text-white/35">Approximate signal</p>
+        </div>
       </div>
       <section className="panel p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/50">Pipeline Stage</h2>

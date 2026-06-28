@@ -67,6 +67,10 @@ export async function getMyApplications(email: string): Promise<Candidate[]> {
   return request(`/api/applications/me?email=${encodeURIComponent(email)}`);
 }
 
+export async function getMyOnboardingTasks(email: string): Promise<OnboardingTask[]> {
+  return request(`/api/applications/me/onboarding?email=${encodeURIComponent(email)}`);
+}
+
 export async function getInterviews(): Promise<Array<Interview & { candidateName?: string }>> {
   return request('/api/interviews');
 }
@@ -135,6 +139,16 @@ export async function bookSchedulerSlot(input: BookSchedulerInput): Promise<Inte
 
 export async function getOnboardingTasks(): Promise<OnboardingTask[]> {
   return request('/api/onboarding');
+}
+
+export async function updateOnboardingTaskStatus(
+  id: string,
+  status: 'pending' | 'in_progress' | 'done',
+): Promise<OnboardingTask> {
+  return request(`/api/onboarding/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

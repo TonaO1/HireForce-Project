@@ -133,6 +133,7 @@ export interface Candidate {
   resumeFileName?: string;
   resumeSummary?: string;
   resumeParsingError?: string;
+  resumeMatchScore?: number;
   applicationAnswers?: ApplicationAnswer[];
   avatarInitials: string;
   score?: number;
@@ -142,10 +143,14 @@ export interface Candidate {
 
 export interface OnboardingTask {
   id: string;
+  candidateApplicationId: string;
   candidateId: string;
   candidateName: string;
+  jobId?: string;
+  jobTitle: string;
   title: string;
   status: OnboardingStatus;
+  dueDate?: string;
   triggeredAt: string;
 }
 

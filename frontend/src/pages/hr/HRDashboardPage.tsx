@@ -55,8 +55,8 @@ function ApplicantCard({ candidate, onOpen }: { candidate: Candidate; onOpen: ()
           <p className="mt-0.5 text-xs text-white/50">{STAGE_LABELS[candidate.stage]}</p>
         </div>
         <div className="shrink-0 text-right">
-          <div className="font-mono text-lg font-semibold leading-none text-white">{candidate.score ?? '—'}</div>
-          <div className="mt-1 text-[10px] uppercase tracking-wider text-white/40">match</div>
+          <div className="font-mono text-lg font-semibold leading-none text-white">{candidate.resumeMatchScore ?? 'N/A'}</div>
+          <div className="mt-1 text-[10px] uppercase tracking-wider text-white/40">resume match</div>
         </div>
       </div>
       <p className="mt-3 truncate text-xs text-white/50">{candidate.email}</p>

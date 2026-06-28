@@ -10,11 +10,13 @@ import {
   getInterviews,
   getJobs,
   getMyApplications,
+  getMyOnboardingTasks,
   getOnboardingTasks,
   getSchedulerSlots,
   submitApplication,
   updateCandidateStage,
   updateInterview,
+  updateOnboardingTaskStatus,
 } from '../lib/api';
 import type {
   BookSchedulerInput,
@@ -188,6 +190,16 @@ export function useCalendarInterviews(from?: string, to?: string) {
 
 export function useOnboardingTasks() {
   return useApiQuery<OnboardingTask[]>(getOnboardingTasks, []);
+}
+
+export function useMyOnboardingTasks(email: string | undefined) {
+  return useApiQuery<OnboardingTask[]>(() => getMyOnboardingTasks(email || ''), [email], Boolean(email));
+}
+
+export function useUpdateOnboardingTaskStatus() {
+  return useMutation<{ id: string; status: OnboardingTask['status'] }, OnboardingTask>(({ id, status }) =>
+    updateOnboardingTaskStatus(id, status),
+  );
 }
 
 export function useSchedulerSlots(input: { start?: string; end?: string; interviewerId?: string; enabled?: boolean }) {

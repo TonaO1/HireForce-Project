@@ -11,11 +11,13 @@ import {
   getInterviewers,
   getJobs,
   getMyApplications,
+  getMyOnboardingTasks,
   getOnboardingTasks,
   getSchedulerSlots,
   isSalesforceConfigured,
   updateCandidateStage,
   updateInterview,
+  updateOnboardingTaskStatus,
 } from "./salesforce.mjs";
 
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
@@ -55,6 +57,10 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/applications/me") {
       return json(response, await getMyApplications(url.searchParams.get("email")));
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/applications/me/onboarding") {
+      return json(response, await getMyOnboardingTasks(url.searchParams.get("email")));
     }
 
     const candidateMatch = url.pathname.match(/^\/api\/candidates\/([a-zA-Z0-9]{15,18})$/);
@@ -97,6 +103,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/onboarding") {
       return json(response, await getOnboardingTasks());
+    }
+
+    const onboardingMatch = url.pathname.match(/^\/api\/onboarding\/([a-zA-Z0-9]{15,18})$/);
+    if (request.method === "PATCH" && onboardingMatch) {
+      const body = await readJson(request);
+      return json(response, await updateOnboardingTaskStatus(onboardingMatch[1], body.status));
     }
 
     if (request.method === "GET" && url.pathname === "/api/interviewers") {
