@@ -100,7 +100,7 @@ export function LoginPage() {
           <h1 className="text-2xl font-semibold text-white">
             Sign in as {role === 'hr' ? 'HR' : 'Job Applicant'}
           </h1>
-          <p className="mt-1 text-sm text-white/50">Demo: any email &amp; password works</p>
+          <p className="mt-1 text-sm text-white/50">Enter any email and password to continue.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>

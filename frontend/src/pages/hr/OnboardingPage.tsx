@@ -1,5 +1,6 @@
-import { CheckCircle2, Circle, Clock } from 'lucide-react';
-import { mockOnboardingTasks } from '../../data/mockData';
+import { CheckCircle2, Circle, Clock, ClipboardList } from 'lucide-react';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useData } from '../../contexts/DataContext';
 import type { OnboardingStatus } from '../../types';
 
 const statusIcon: Record<OnboardingStatus, typeof CheckCircle2> = {
@@ -16,13 +17,15 @@ const statusColor: Record<OnboardingStatus, string> = {
 };
 
 export function OnboardingPage() {
-  const grouped = mockOnboardingTasks.reduce(
+  const { onboardingTasks } = useData();
+
+  const grouped = onboardingTasks.reduce(
     (acc, task) => {
       if (!acc[task.candidateName]) acc[task.candidateName] = [];
       acc[task.candidateName].push(task);
       return acc;
     },
-    {} as Record<string, typeof mockOnboardingTasks>,
+    {} as Record<string, typeof onboardingTasks>,
   );
 
   return (
@@ -30,12 +33,16 @@ export function OnboardingPage() {
       <div>
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Auto-Onboarding</h1>
         <p className="mt-1 text-white/50">
-          Tasks triggered automatically when a candidate is marked Hired
+          Tasks created automatically when a candidate is marked Hired
         </p>
       </div>
 
       {Object.keys(grouped).length === 0 ? (
-        <p className="text-white/40">No onboarding flows active</p>
+        <EmptyState
+          icon={ClipboardList}
+          title="No onboarding flows yet"
+          description="Mark a candidate as Hired from their profile and their onboarding checklist will appear here automatically."
+        />
       ) : (
         Object.entries(grouped).map(([name, tasks]) => (
           <section key={name} className="panel p-6">

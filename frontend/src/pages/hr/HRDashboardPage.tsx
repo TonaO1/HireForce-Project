@@ -1,27 +1,27 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Briefcase, Users } from 'lucide-react';
 import { InteractiveCanvas } from '../../components/workspace/InteractiveCanvas';
-import { mockCandidates, mockJobs } from '../../data/mockData';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useData } from '../../contexts/DataContext';
 import { STAGE_LABELS } from '../../types';
 import type { Candidate, JobOpening } from '../../types';
-
-const SKILLS_BY_ROLE: Record<string, string[]> = {
-  'Senior Frontend Engineer': ['React', 'TypeScript', 'CSS', 'Testing'],
-  'Product Designer': ['Figma', 'Prototyping', 'UX', 'Systems'],
-  'Recruiting Coordinator': ['ATS', 'Scheduling', 'Comms', 'Sourcing'],
-};
-
-function skillsFor(c: Candidate): string[] {
-  return SKILLS_BY_ROLE[c.roleApplied] ?? ['Communication', 'Ownership', 'Collaboration'];
-}
 
 function lastUpdatedFor(c: Candidate): string {
   const latest = c.interviews.map((i) => i.scheduledAt).sort().at(-1) ?? c.appliedAt;
   return new Date(latest).toLocaleDateString();
 }
 
-function JobCard({ job, onOpen }: { job: JobOpening; onOpen: () => void }) {
+function JobCard({
+  job,
+  applicantCount,
+  onOpen,
+}: {
+  job: JobOpening;
+  applicantCount: number;
+  onOpen: () => void;
+}) {
   return (
     <div className="flex h-full flex-col p-4">
       <div className="flex items-start justify-between gap-2">
@@ -29,7 +29,7 @@ function JobCard({ job, onOpen }: { job: JobOpening; onOpen: () => void }) {
           <h3 className="truncate font-mono text-sm font-semibold leading-tight text-white">
             {job.title}
           </h3>
-          <p className="mt-0.5 truncate text-xs text-white/50">{job.department}</p>
+          <p className="mt-0.5 truncate text-xs text-white/50">{job.department || 'No department'}</p>
         </div>
         <span className="shrink-0 rounded border border-white/30 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white/70">
           {job.status}
@@ -37,7 +37,7 @@ function JobCard({ job, onOpen }: { job: JobOpening; onOpen: () => void }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-white/50">
-        <span>{job.applicantCount} applicants</span>
+        <span>{applicantCount} applicants</span>
         <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '—'}</span>
       </div>
 
@@ -55,7 +55,7 @@ function JobCard({ job, onOpen }: { job: JobOpening; onOpen: () => void }) {
   );
 }
 
-function ApplicantCard({ candidate }: { candidate: Candidate }) {
+function ApplicantCard({ candidate, onOpen }: { candidate: Candidate; onOpen: () => void }) {
   return (
     <div className="flex h-full flex-col p-4">
       <div className="flex items-start justify-between gap-2">
@@ -71,31 +71,37 @@ function ApplicantCard({ candidate }: { candidate: Candidate }) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {skillsFor(candidate).slice(0, 4).map((s) => (
-          <span
-            key={s}
-            className="rounded border border-white/20 px-2 py-0.5 text-[10px] text-white/60"
-          >
-            {s}
-          </span>
-        ))}
-      </div>
+      <p className="mt-3 truncate text-xs text-white/50">{candidate.email}</p>
 
-      <div className="mt-auto flex items-center justify-between pt-3 text-[11px] text-white/40">
-        <span>updated {lastUpdatedFor(candidate)}</span>
-        <span className="font-mono uppercase tracking-wider">{candidate.stage}</span>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+        <span className="text-[11px] text-white/40">updated {lastUpdatedFor(candidate)}</span>
+        <button
+          type="button"
+          data-no-drag
+          onClick={onOpen}
+          className="btn-mono btn-mono-outline !px-3 !py-1.5 !text-[11px]"
+        >
+          View
+        </button>
       </div>
     </div>
   );
 }
 
 export function HRDashboardPage() {
+  const { jobs, candidates } = useData();
+  const navigate = useNavigate();
   const [activeJob, setActiveJob] = useState<JobOpening | null>(null);
 
+  const countByJob = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const c of candidates) map[c.jobId] = (map[c.jobId] ?? 0) + 1;
+    return map;
+  }, [candidates]);
+
   const applicants = useMemo(
-    () => (activeJob ? mockCandidates.filter((c) => c.jobId === activeJob.id) : []),
-    [activeJob],
+    () => (activeJob ? candidates.filter((c) => c.jobId === activeJob.id) : []),
+    [activeJob, candidates],
   );
 
   return (
@@ -154,12 +160,29 @@ export function HRDashboardPage() {
               exit={{ opacity: 0, scale: 1.02 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
-              <InteractiveCanvas
-                items={applicants}
-                cardWidth={252}
-                cardHeight={190}
-                renderCard={(c) => <ApplicantCard candidate={c} />}
-              />
+              {applicants.length > 0 ? (
+                <InteractiveCanvas
+                  items={applicants}
+                  cardWidth={252}
+                  cardHeight={180}
+                  renderCard={(c) => (
+                    <ApplicantCard
+                      candidate={c}
+                      onOpen={() => navigate(`/hr/candidates/${c.id}`)}
+                    />
+                  )}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-8">
+                  <EmptyState
+                    icon={Users}
+                    className="max-w-md"
+                    title="No applicants yet"
+                    description={`Applications for ${activeJob.title} will appear here as candidates apply.`}
+                    action={{ label: 'Back to Jobs', onClick: () => setActiveJob(null) }}
+                  />
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -170,12 +193,30 @@ export function HRDashboardPage() {
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
-              <InteractiveCanvas
-                items={mockJobs}
-                cardWidth={252}
-                cardHeight={176}
-                renderCard={(job) => <JobCard job={job} onOpen={() => setActiveJob(job)} />}
-              />
+              {jobs.length > 0 ? (
+                <InteractiveCanvas
+                  items={jobs}
+                  cardWidth={252}
+                  cardHeight={176}
+                  renderCard={(job) => (
+                    <JobCard
+                      job={job}
+                      applicantCount={countByJob[job.id] ?? 0}
+                      onOpen={() => setActiveJob(job)}
+                    />
+                  )}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-8">
+                  <EmptyState
+                    icon={Briefcase}
+                    className="max-w-md"
+                    title="No job openings yet"
+                    description="Create your first role to start building a candidate pipeline. Roles you post show up here as cards."
+                    action={{ label: 'New Role', to: '/hr/jobs' }}
+                  />
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

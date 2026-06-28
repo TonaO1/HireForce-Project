@@ -3,33 +3,28 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, Mail, Star, CheckCircle2 } from 'lucide-react';
 import { StageBadge } from '../../components/candidate/StageBadge';
 import { StageStepper } from '../../components/candidate/StageStepper';
-import { mockCandidates } from '../../data/mockData';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useData } from '../../contexts/DataContext';
 import type { PipelineStage } from '../../types';
 
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const candidate = mockCandidates.find((c) => c.id === id);
-  const [stage, setStage] = useState<PipelineStage | undefined>(candidate?.stage);
+  const { candidates, updateCandidateStage } = useData();
+  const candidate = candidates.find((c) => c.id === id);
   const [showOnboardingToast, setShowOnboardingToast] = useState(false);
 
   if (!candidate) {
     return (
-      <div className="mx-auto max-w-md rounded-xl border border-white/15 bg-black p-8 text-center">
-        <p className="text-white/60">Candidate not found</p>
-        <Link
-          to="/hr"
-          className="mt-4 inline-block text-sm text-white/80 underline-offset-4 hover:text-white hover:underline"
-        >
-          ← Back to dashboard
-        </Link>
-      </div>
+      <EmptyState
+        title="Candidate not found"
+        description="This candidate may have been removed, or the link is no longer valid."
+        action={{ label: 'Back to dashboard', to: '/hr' }}
+      />
     );
   }
 
-  const currentStage = stage ?? candidate.stage;
-
   const handleStageChange = (newStage: PipelineStage) => {
-    setStage(newStage);
+    updateCandidateStage(candidate.id, newStage);
     if (newStage === 'hired') {
       setShowOnboardingToast(true);
       setTimeout(() => setShowOnboardingToast(false), 4000);
@@ -64,12 +59,12 @@ export function CandidateDetailPage() {
             <h1 className="text-2xl font-bold text-white">{candidate.name}</h1>
             <p className="text-white/60">{candidate.roleApplied}</p>
             <div className="mt-1">
-              <StageBadge stage={currentStage} />
+              <StageBadge stage={candidate.stage} />
             </div>
           </div>
         </div>
         <Link to="/hr/interviews" className="btn-mono btn-mono-solid !px-4 !py-2 !text-sm">
-          Schedule interview
+          View interviews
         </Link>
       </div>
 
@@ -77,7 +72,7 @@ export function CandidateDetailPage() {
         <div className="panel p-4">
           <Mail className="h-4 w-4 text-white/50" />
           <p className="mt-2 text-sm text-white/50">Email</p>
-          <p className="text-white">{candidate.email}</p>
+          <p className="truncate text-white">{candidate.email}</p>
         </div>
         <div className="panel p-4">
           <Calendar className="h-4 w-4 text-white/50" />
@@ -97,7 +92,7 @@ export function CandidateDetailPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/50">
           Pipeline Stage
         </h2>
-        <StageStepper currentStage={currentStage} onStageChange={handleStageChange} />
+        <StageStepper currentStage={candidate.stage} onStageChange={handleStageChange} />
       </section>
 
       {candidate.notes && (

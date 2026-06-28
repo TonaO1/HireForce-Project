@@ -1,55 +1,47 @@
-import { PIPELINE_STAGES, STAGE_LABELS } from '../../types';
-
-const demoStage = 'interview';
-const currentIndex = PIPELINE_STAGES.indexOf(demoStage);
+import { FileText } from 'lucide-react';
+import { StageStepper } from '../../components/candidate/StageStepper';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 
 export function MyApplicationPage() {
+  const { user } = useAuth();
+  const { candidates } = useData();
+  const applications = candidates.filter((c) => user && c.email === user.email);
+
   return (
     <div className="space-y-6 text-white">
       <div>
-        <h1 className="font-mono text-2xl font-bold tracking-tight text-white">My Application</h1>
+        <h1 className="font-mono text-2xl font-bold tracking-tight text-white">My Applications</h1>
         <p className="mt-1 text-white/50">Track your progress through the hiring pipeline</p>
       </div>
 
-      <div className="panel p-6">
-        <h2 className="font-semibold text-white">Senior Frontend Engineer</h2>
-        <p className="text-sm text-white/50">Applied June 10, 2026</p>
-
-        <div className="mt-8 space-y-0">
-          {PIPELINE_STAGES.filter((s) => s !== 'rejected').map((stage, i) => {
-            const done = i < currentIndex;
-            const active = i === currentIndex;
-            return (
-              <div key={stage} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                      done
-                        ? 'bg-white text-black'
-                        : active
-                          ? 'bg-white text-black ring-4 ring-white/20'
-                          : 'border border-white/20 bg-black text-white/40'
-                    }`}
-                  >
-                    {done ? '✓' : i + 1}
-                  </div>
-                  {i < 4 && (
-                    <div className={`h-10 w-0.5 ${done ? 'bg-white/40' : 'bg-white/15'}`} />
-                  )}
-                </div>
-                <div className="pb-8">
-                  <p className={`font-medium ${active ? 'text-white' : 'text-white/50'}`}>
-                    {STAGE_LABELS[stage]}
+      {applications.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No applications yet"
+          description="When you apply to a role, you'll be able to track its progress through the pipeline here."
+          action={{ label: 'Browse Jobs', to: '/apply' }}
+        />
+      ) : (
+        <div className="space-y-4">
+          {applications.map((application) => (
+            <div key={application.id} className="panel p-6">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="font-semibold text-white">{application.roleApplied}</h2>
+                  <p className="text-sm text-white/50">
+                    Applied {new Date(application.appliedAt).toLocaleDateString()}
                   </p>
-                  {active && (
-                    <p className="text-sm text-white/50">You are currently in this stage</p>
-                  )}
                 </div>
               </div>
-            );
-          })}
+              <div className="mt-5 overflow-x-auto">
+                <StageStepper currentStage={application.stage} readonly />
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

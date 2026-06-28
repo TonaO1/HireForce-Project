@@ -1,3 +1,6 @@
+import { CalendarClock } from 'lucide-react';
+import { EmptyState } from '../../components/ui/EmptyState';
+
 export function BookInterviewPage() {
   return (
     <div className="space-y-6 text-white">
@@ -8,25 +11,12 @@ export function BookInterviewPage() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/15 bg-black">
-        <div className="border-b border-white/15 px-6 py-4">
-          <p className="text-sm text-white/60">
-            Calendly / Salesforce Scheduler embed placeholder
-          </p>
-        </div>
-        <div className="flex h-[500px] flex-col items-center justify-center gap-4 p-8 text-center">
-          <div className="rounded-2xl border border-dashed border-white/20 p-12">
-            <p className="text-lg font-medium text-white">Scheduling Widget</p>
-            <p className="mt-2 max-w-md text-sm text-white/50">
-              Replace this area with your Calendly iframe or Salesforce Scheduler embed.
-              Candidates will see available slots and book directly into the recruiter&apos;s calendar.
-            </p>
-            <code className="mt-4 block rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/70">
-              https://calendly.com/your-recruiter/30min
-            </code>
-          </div>
-        </div>
-      </div>
+      <EmptyState
+        icon={CalendarClock}
+        title="Interview booking is coming soon"
+        description="Once a recruiter invites you to interview, you'll be able to choose an available slot and confirm it here."
+        action={{ label: 'Browse Jobs', to: '/apply' }}
+      />
     </div>
   );
 }

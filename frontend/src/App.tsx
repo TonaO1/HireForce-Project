@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import { ProtectedRoute, RoleRoute } from './routes/ProtectedRoute';
 import { HRLayout } from './components/layout/HRLayout';
 import { ApplicantLayout } from './components/layout/ApplicantLayout';
@@ -65,7 +66,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <DataProvider>
+          <AppRoutes />
+        </DataProvider>
       </AuthProvider>
     </BrowserRouter>
   );
