@@ -55,6 +55,8 @@ export interface SubmitApplicationInput {
   answers?: ApplicationAnswer[];
   resumeFileName?: string;
   resumeUrl?: string;
+  resumeFileBase64?: string;
+  resumeMimeType?: string;
 }
 
 export interface CreateJobInput {
@@ -129,6 +131,8 @@ export interface Candidate {
   appliedAt: string;
   resumeUrl?: string;
   resumeFileName?: string;
+  resumeSummary?: string;
+  resumeParsingError?: string;
   applicationAnswers?: ApplicationAnswer[];
   avatarInitials: string;
   score?: number;

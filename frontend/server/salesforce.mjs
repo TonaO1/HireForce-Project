@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { createSign } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { promisify } from "node:util";
+import { createResumeSummary } from "./resumeSummaryAgent.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -117,11 +118,14 @@ export async function getCandidate(id) {
   `);
   if (!records[0]) return null;
   const interviews = await getInterviewsByApplicationIds([id]);
-  return mapCandidate(records[0], interviews);
+  const candidate = mapCandidate(records[0], interviews);
+  const resumeSummary = await getResumeSummaryForCandidate(id);
+  return { ...candidate, ...resumeSummary };
 }
 
 export async function createApplication(input) {
   const recordTypeId = await getRecruitingRecordTypeId();
+  const job = await getJob(input.jobId);
   const payload = compact({
     Name: input.name,
     Email__c: input.email,
@@ -135,6 +139,18 @@ export async function createApplication(input) {
   });
 
   const result = await salesforceCreate("Candidate_Application__c", payload);
+  await handleResumeAgent(result.id, {
+    candidateName: input.name,
+    roleTitle: job?.title,
+    jobDescription: job?.description,
+    resumeFile: input.resumeFileBase64
+      ? {
+          name: input.resumeFileName || "resume",
+          base64: input.resumeFileBase64,
+          mimeType: input.resumeMimeType,
+        }
+      : undefined,
+  });
   try {
     await salesforceCreate("Task", {
       WhatId: result.id,
@@ -147,6 +163,16 @@ export async function createApplication(input) {
     // Task creation is helpful for recruiters, but application creation is the critical path.
   }
   return getCandidate(result.id);
+}
+
+async function handleResumeAgent(candidateApplicationId, input) {
+  if (!input.resumeFile?.base64) return;
+  const [{ resumeSummary, resumeParsingError }] = await Promise.all([
+    createResumeSummary(input),
+    uploadResumeFile(candidateApplicationId, input.resumeFile),
+  ]);
+  const noteBody = resumeSummary || resumeParsingError;
+  if (noteBody) await upsertResumeSummaryNote(candidateApplicationId, noteBody);
 }
 
 export async function updateCandidateStage(id, stage) {
@@ -372,6 +398,62 @@ async function getRecruitingRecordTypeId() {
   `);
   recruitingRecordTypeId = records[0]?.Id || undefined;
   return recruitingRecordTypeId;
+}
+
+async function uploadResumeFile(candidateApplicationId, resumeFile) {
+  try {
+    await salesforceCreate("ContentVersion", {
+      Title: resumeFile.name.replace(/\.[^.]+$/, "") || "Resume",
+      PathOnClient: resumeFile.name || "resume.txt",
+      VersionData: resumeFile.base64,
+      FirstPublishLocationId: assertSalesforceId(candidateApplicationId),
+    });
+  } catch (error) {
+    await upsertResumeSummaryNote(
+      candidateApplicationId,
+      `Resume parsing failed: resume file could not be attached to Salesforce. ${error instanceof Error ? error.message : ""}`.trim(),
+    );
+  }
+}
+
+async function getResumeSummaryForCandidate(candidateApplicationId) {
+  const records = await salesforceQuery(`
+    SELECT Id, Body, CreatedDate
+    FROM Note
+    WHERE ParentId = '${assertSalesforceId(candidateApplicationId)}'
+    AND Title = 'HR Resume Summary'
+    ORDER BY CreatedDate DESC
+    LIMIT 1
+  `);
+  const body = records[0]?.Body;
+  if (!body) return {};
+  if (String(body).toLowerCase().startsWith("resume parsing failed")) {
+    return { resumeParsingError: body };
+  }
+  return { resumeSummary: body };
+}
+
+async function upsertResumeSummaryNote(candidateApplicationId, body) {
+  const records = await salesforceQuery(`
+    SELECT Id
+    FROM Note
+    WHERE ParentId = '${assertSalesforceId(candidateApplicationId)}'
+    AND Title = 'HR Resume Summary'
+    ORDER BY CreatedDate DESC
+    LIMIT 1
+  `);
+  if (records[0]) {
+    await salesforceUpdate("Note", {
+      Id: records[0].Id,
+      Body: body,
+    });
+    return;
+  }
+  await salesforceCreate("Note", {
+    ParentId: assertSalesforceId(candidateApplicationId),
+    Title: "HR Resume Summary",
+    Body: body,
+  });
 }
 
 async function findDepartmentId(name) {

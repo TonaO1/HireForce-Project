@@ -118,6 +118,19 @@ export function CandidateDetailPage() {
         </section>
       )}
 
+      {(candidate.resumeSummary || candidate.resumeParsingError) && (
+        <section className="panel p-6">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/50">HR Resume Summary</h2>
+          {candidate.resumeParsingError ? (
+            <p className="rounded-lg border border-white/20 bg-white/[0.03] p-4 text-sm text-white/70">{candidate.resumeParsingError}</p>
+          ) : (
+            <pre className="whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.02] p-4 text-sm leading-6 text-white/75">
+              {candidate.resumeSummary}
+            </pre>
+          )}
+        </section>
+      )}
+
       <section className="panel p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/50">Interview History</h2>
         {candidate.interviews.length === 0 ? <p className="text-sm text-white/40">No interviews logged yet</p> : (

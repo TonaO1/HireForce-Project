@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useJobs, useMyApplications, useSubmitApplication } from '../../hooks/useHireForce';
 import type { ApplicationAnswer, JobOpening } from '../../types';
 
-const ACCEPTED_RESUME_TYPES = '.pdf,.doc,.docx';
+const ACCEPTED_RESUME_TYPES = '.pdf,.docx,.txt';
 
 export function ApplyPage() {
   const { user } = useAuth();
@@ -69,10 +69,7 @@ export function ApplyPage() {
       answer: answers[q.id].trim(),
     }));
 
-    let resumeUrl: string | undefined;
-    if (resumeFile) {
-      resumeUrl = URL.createObjectURL(resumeFile);
-    }
+    const resumePayload = resumeFile ? await readResumeFile(resumeFile) : {};
 
     try {
       await submitApplication.mutateAsync({
@@ -81,7 +78,8 @@ export function ApplyPage() {
         email: user.email,
         answers: applicationAnswers.length ? applicationAnswers : undefined,
         resumeFileName: resumeFile?.name,
-        resumeUrl,
+        resumeUrl: resumeFile ? URL.createObjectURL(resumeFile) : undefined,
+        ...resumePayload,
       });
       closeApplyModal();
     } catch (err) {
@@ -261,4 +259,17 @@ export function ApplyPage() {
       </Modal>
     </div>
   );
+}
+
+function readResumeFile(file: File): Promise<{ resumeFileBase64: string; resumeMimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read the resume file.'));
+    reader.onload = () => {
+      const value = String(reader.result || '');
+      const [, base64 = ''] = value.split(',');
+      resolve({ resumeFileBase64: base64, resumeMimeType: file.type || 'application/octet-stream' });
+    };
+    reader.readAsDataURL(file);
+  });
 }

@@ -142,6 +142,10 @@ export function useSubmitApplication() {
         name: input.name,
         email: input.email,
         phone: undefined,
+        answers: input.answers,
+        resumeFileName: input.resumeFileName,
+        resumeFileBase64: input.resumeFileBase64,
+        resumeMimeType: input.resumeMimeType,
       }),
     { success: true },
   );

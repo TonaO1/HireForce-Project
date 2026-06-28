@@ -52,6 +52,10 @@ export async function submitApplication(input: {
   name: string;
   email: string;
   phone?: string;
+  answers?: unknown[];
+  resumeFileName?: string;
+  resumeFileBase64?: string;
+  resumeMimeType?: string;
 }): Promise<Candidate> {
   return request('/api/applications', {
     method: 'POST',
