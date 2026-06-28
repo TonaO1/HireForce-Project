@@ -1,4 +1,4 @@
-# HireForce
+# Worknite
 
 HR hiring platform with candidate pipeline tracking, interview management, and auto-onboarding.
 
