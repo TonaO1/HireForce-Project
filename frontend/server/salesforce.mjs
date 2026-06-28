@@ -27,6 +27,7 @@ export async function getJobs() {
     SELECT Id, Name, Job_Title__c, Status__c, Priority__c, Headcount__c, Target_Start_Date__c,
            Description__c, CreatedDate, Department__r.Name
     FROM Job_Opening__c
+    WHERE Status__c = 'Open'
     ORDER BY CreatedDate DESC
   `);
 
@@ -90,9 +91,10 @@ export async function getCandidates() {
     ORDER BY LastModifiedDate DESC
     LIMIT 100
   `);
-  const ids = records.map((record) => record.Id);
+  const cleanRecords = records.filter((record) => !isJunkCandidate(record));
+  const ids = cleanRecords.map((record) => record.Id);
   const interviews = await getInterviewsByApplicationIds(ids);
-  return records.map((record) => mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id)));
+  return cleanRecords.map((record) => mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id)));
 }
 
 export async function getCandidate(id) {
@@ -160,6 +162,7 @@ export async function getInterviews() {
            Interview_Type__c, Status__c, Interviewer__r.Name, Outcome__c, Score__c,
            Feedback__c, Strengths__c, Concerns__c, Evidence__c, CreatedDate
     FROM Interview__c
+    WHERE Candidate_Application__c != null
     ORDER BY Interview_Date__c DESC
     LIMIT 100
   `);
@@ -203,12 +206,13 @@ async function getInterview(id) {
 export async function getOnboardingTasks() {
   const records = await salesforceQuery(`
     SELECT Id, Name, Task_Name__c, Candidate_Application__c, Candidate_Application__r.Name,
+           Candidate_Application__r.Email__c,
            Status__c, Due_Date__c, CreatedDate
     FROM Onboarding_Task__c
     ORDER BY Due_Date__c ASC
     LIMIT 100
   `);
-  return records.map(mapOnboardingTask);
+  return records.filter((record) => !isJunkCandidate(record.Candidate_Application__r || {})).map(mapOnboardingTask);
 }
 
 async function getInterviewsByApplicationIds(ids) {
@@ -253,7 +257,7 @@ async function findDepartmentId(name) {
   }
 }
 
-async function salesforceQuery(soql) {
+export async function salesforceQuery(soql) {
   const auth = await salesforceAuth();
   const response = await fetch(
     `${auth.instanceUrl}/services/data/v${apiVersion()}/query?q=${encodeURIComponent(soql)}`,
@@ -264,7 +268,7 @@ async function salesforceQuery(soql) {
   return body.records || [];
 }
 
-async function salesforceCreate(objectName, data) {
+export async function salesforceCreate(objectName, data) {
   const auth = await salesforceAuth();
   const response = await fetch(`${auth.instanceUrl}/services/data/v${apiVersion()}/sobjects/${objectName}/`, {
     method: "POST",
@@ -279,7 +283,7 @@ async function salesforceCreate(objectName, data) {
   return body;
 }
 
-async function salesforceUpdate(objectName, data) {
+export async function salesforceUpdate(objectName, data) {
   const auth = await salesforceAuth();
   const { Id, ...fields } = data;
   const response = await fetch(`${auth.instanceUrl}/services/data/v${apiVersion()}/sobjects/${objectName}/${Id}`, {
@@ -377,6 +381,17 @@ function mapCandidate(record, interviews) {
     interviews,
     notes: record.Rejection_Reason__c ? `Rejection reason: ${record.Rejection_Reason__c}` : undefined,
   };
+}
+
+function isJunkCandidate(record) {
+  const email = String(record.Email__c || "").toLowerCase();
+  return (
+    email === "a@a.a" ||
+    email === "123@231.w" ||
+    email === "ibrahimiamen0@gmail.com" ||
+    email.startsWith("website-test-") ||
+    email.startsWith("hireforce-api-")
+  );
 }
 
 function mapInterview(record) {
