@@ -15,6 +15,8 @@ export function ApplyPage() {
   const submitApplication = useSubmitApplication();
 
   const [applyJob, setApplyJob] = useState<JobOpening | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [formError, setFormError] = useState('');
@@ -28,13 +30,18 @@ export function ApplyPage() {
 
   const closeApplyModal = () => {
     setApplyJob(null);
+    setFirstName('');
+    setLastName('');
     setAnswers({});
     setResumeFile(null);
     setFormError('');
   };
 
   const openApplyModal = (job: JobOpening) => {
+    const parts = user?.name.trim().split(/\s+/).filter(Boolean) ?? [];
     setApplyJob(job);
+    setFirstName(parts[0] ?? '');
+    setLastName(parts.slice(1).join(' '));
     setAnswers({});
     setResumeFile(null);
     setFormError('');
@@ -44,6 +51,11 @@ export function ApplyPage() {
     e.preventDefault();
     if (!user || !applyJob) return;
     setFormError('');
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setFormError('Please enter your first and last name.');
+      return;
+    }
 
     const missing = questions.filter((q) => !answers[q.id]?.trim());
     if (missing.length > 0) {
@@ -65,7 +77,7 @@ export function ApplyPage() {
     try {
       await submitApplication.mutateAsync({
         jobId: applyJob.id,
-        name: user.name,
+        name: `${firstName.trim()} ${lastName.trim()}`,
         email: user.email,
         answers: applicationAnswers.length ? applicationAnswers : undefined,
         resumeFileName: resumeFile?.name,
@@ -89,7 +101,7 @@ export function ApplyPage() {
     <div className="space-y-6 text-white">
       <div>
         <h1 className="font-mono text-2xl font-bold tracking-tight text-white">Open Positions</h1>
-        <p className="mt-1 text-white/50">Find your next role at HireForce</p>
+        <p className="mt-1 text-white/50">Find your next role at Worknite</p>
       </div>
       {error && (
         <div className="rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm text-white">
@@ -151,6 +163,36 @@ export function ApplyPage() {
             {formError && (
               <div className="rounded-lg border border-white/30 bg-white/5 px-3 py-2 text-sm text-white">{formError}</div>
             )}
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="apply-first-name" className="mb-1.5 block text-sm font-semibold text-white">
+                  First name
+                </label>
+                <input
+                  id="apply-first-name"
+                  required
+                  autoFocus
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Jane"
+                  className="input-mono"
+                />
+              </div>
+              <div>
+                <label htmlFor="apply-last-name" className="mb-1.5 block text-sm font-semibold text-white">
+                  Last name
+                </label>
+                <input
+                  id="apply-last-name"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Doe"
+                  className="input-mono"
+                />
+              </div>
+            </div>
 
             {questions.length > 0 && (
               <div className="space-y-4">

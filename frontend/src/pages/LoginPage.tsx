@@ -32,7 +32,7 @@ export function LoginPage() {
 
         <header className="relative z-10 flex items-center justify-between px-6 py-5">
           <span className="font-mono text-xs uppercase tracking-[0.3em] text-white/70">
-            HireForce
+            Worknite
           </span>
           <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/30">
             recruiting_os
@@ -52,7 +52,7 @@ export function LoginPage() {
           </div>
 
           <h1 className="font-mono text-4xl font-semibold tracking-tight sm:text-6xl">
-            HireForce
+            Worknite
           </h1>
           <p className="mt-4 max-w-xl text-sm text-white/60 sm:text-base">
             Candidate pipelines, interviews, and onboarding &mdash; engineered into

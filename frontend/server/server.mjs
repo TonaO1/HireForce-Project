@@ -89,7 +89,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, () => {
-  console.log(`HireForce Salesforce API listening on http://localhost:${port}`);
+  console.log(`Worknite Salesforce API listening on http://localhost:${port}`);
 });
 
 function setCors(response) {

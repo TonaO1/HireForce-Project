@@ -31,7 +31,7 @@ export function HRLayout() {
         <div className="border-b border-white/15 p-6">
           <div className="flex items-center gap-2">
             <Users className="h-6 w-6 text-white" />
-            <span className="font-mono text-lg font-bold tracking-tight text-white">HireForce</span>
+            <span className="font-mono text-lg font-bold tracking-tight text-white">Worknite</span>
           </div>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
             HR Portal

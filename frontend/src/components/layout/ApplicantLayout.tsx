@@ -21,7 +21,7 @@ export function ApplicantLayout() {
     <div className="min-h-screen bg-black text-white">
       <header className="border-b border-white/15 bg-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="font-mono text-lg font-bold tracking-tight text-white">HireForce</span>
+          <span className="font-mono text-lg font-bold tracking-tight text-white">Worknite</span>
           <nav className="flex items-center gap-1">
             {navItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink

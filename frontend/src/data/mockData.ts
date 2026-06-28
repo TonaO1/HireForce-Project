@@ -273,8 +273,8 @@ export const mockOnboardingTasks: OnboardingTask[] = [
 ];
 
 export const mockInterviewers: Interviewer[] = [
-  { id: 'u-1', name: 'Sarah Chen', email: 'sarah.chen@hireforce.com' },
-  { id: 'u-2', name: 'Mike Torres', email: 'mike.torres@hireforce.com' },
-  { id: 'u-3', name: 'Lisa Park', email: 'lisa.park@hireforce.com' },
-  { id: 'u-4', name: 'Emma Walsh', email: 'emma.walsh@hireforce.com' },
+  { id: 'u-1', name: 'Sarah Chen', email: 'sarah.chen@worknite.com' },
+  { id: 'u-2', name: 'Mike Torres', email: 'mike.torres@worknite.com' },
+  { id: 'u-3', name: 'Lisa Park', email: 'lisa.park@worknite.com' },
+  { id: 'u-4', name: 'Emma Walsh', email: 'emma.walsh@worknite.com' },
 ];
