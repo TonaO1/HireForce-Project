@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
 import { mockOnboardingTasks } from '../../data/mockData';
-import type { OnboardingStatus } from '../../types';
+import { getOnboardingTasks } from '../../lib/api';
+import type { OnboardingStatus, OnboardingTask } from '../../types';
 
 const statusIcon: Record<OnboardingStatus, typeof CheckCircle2> = {
   done: CheckCircle2,
@@ -15,13 +17,37 @@ const statusColor: Record<OnboardingStatus, string> = {
 };
 
 export function OnboardingPage() {
-  const grouped = mockOnboardingTasks.reduce(
-    (acc, task) => {
-      if (!acc[task.candidateName]) acc[task.candidateName] = [];
-      acc[task.candidateName].push(task);
-      return acc;
-    },
-    {} as Record<string, typeof mockOnboardingTasks>,
+  const [tasks, setTasks] = useState<OnboardingTask[]>(mockOnboardingTasks);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    getOnboardingTasks()
+      .then((remoteTasks) => {
+        if (!active) return;
+        setTasks(remoteTasks);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const grouped = useMemo(
+    () =>
+      tasks.reduce(
+        (acc, task) => {
+          if (!acc[task.candidateName]) acc[task.candidateName] = [];
+          acc[task.candidateName].push(task);
+          return acc;
+        },
+        {} as Record<string, OnboardingTask[]>,
+      ),
+    [tasks],
   );
 
   return (
@@ -29,7 +55,7 @@ export function OnboardingPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Auto-Onboarding</h1>
         <p className="mt-1 text-slate-500">
-          Tasks triggered automatically when a candidate is marked Hired
+          Tasks triggered automatically when a candidate is marked Hired ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
         </p>
       </div>
 

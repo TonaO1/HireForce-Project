@@ -1,16 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, Mail, Star, CheckCircle2 } from 'lucide-react';
 import { StageBadge } from '../../components/candidate/StageBadge';
 import { StageStepper } from '../../components/candidate/StageStepper';
 import { mockCandidates } from '../../data/mockData';
-import type { PipelineStage } from '../../types';
+import { getCandidate, updateCandidateStage } from '../../lib/api';
+import type { Candidate, PipelineStage } from '../../types';
 
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const candidate = mockCandidates.find((c) => c.id === id);
-  const [stage, setStage] = useState<PipelineStage | undefined>(candidate?.stage);
+  const fallbackCandidate = mockCandidates.find((c) => c.id === id);
+  const [candidate, setCandidate] = useState<Candidate | undefined>(fallbackCandidate);
+  const [stage, setStage] = useState<PipelineStage | undefined>(fallbackCandidate?.stage);
   const [showOnboardingToast, setShowOnboardingToast] = useState(false);
+  const [savingStage, setSavingStage] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    getCandidate(id)
+      .then((remoteCandidate) => {
+        if (!active) return;
+        setCandidate(remoteCandidate);
+        setStage(remoteCandidate.stage);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCandidate(fallbackCandidate);
+        setStage(fallbackCandidate?.stage);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, fallbackCandidate]);
 
   if (!candidate) {
     return (
@@ -25,11 +48,24 @@ export function CandidateDetailPage() {
 
   const currentStage = stage ?? candidate.stage;
 
-  const handleStageChange = (newStage: PipelineStage) => {
+  const handleStageChange = async (newStage: PipelineStage) => {
+    if (!id) return;
+    setSavingStage(true);
+    setError('');
     setStage(newStage);
-    if (newStage === 'hired') {
-      setShowOnboardingToast(true);
-      setTimeout(() => setShowOnboardingToast(false), 4000);
+    try {
+      const updated = await updateCandidateStage(id, newStage);
+      setCandidate(updated);
+      setStage(updated.stage);
+      if (updated.stage === 'hired') {
+        setShowOnboardingToast(true);
+        setTimeout(() => setShowOnboardingToast(false), 4000);
+      }
+    } catch (stageError) {
+      setStage(candidate.stage);
+      setError(stageError instanceof Error ? stageError.message : 'Could not update stage.');
+    } finally {
+      setSavingStage(false);
     }
   };
 
@@ -47,8 +83,14 @@ export function CandidateDetailPage() {
         <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-green-300">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <p className="text-sm">
-            Auto-onboarding triggered — 3 tasks created for {candidate.name}
+            Salesforce Flow triggered onboarding tasks for {candidate.name}
           </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
         </div>
       )}
 
@@ -93,9 +135,9 @@ export function CandidateDetailPage() {
 
       <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-          Pipeline Stage
+          Pipeline Stage {savingStage ? '(saving to Salesforce...)' : ''}
         </h2>
-        <StageStepper currentStage={currentStage} onStageChange={handleStageChange} />
+        <StageStepper currentStage={currentStage} onStageChange={handleStageChange} readonly={savingStage} />
       </section>
 
       {candidate.notes && (

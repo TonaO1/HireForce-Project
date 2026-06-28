@@ -1,9 +1,36 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PIPELINE_STAGES, STAGE_LABELS } from '../../types';
-
-const demoStage = 'interview';
-const currentIndex = PIPELINE_STAGES.indexOf(demoStage);
+import { useAuth } from '../../contexts/AuthContext';
+import { getCandidates } from '../../lib/api';
+import type { Candidate } from '../../types';
 
 export function MyApplicationPage() {
+  const { user } = useAuth();
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const application = useMemo(
+    () => candidates.find((candidate) => candidate.email.toLowerCase() === user?.email.toLowerCase()),
+    [candidates, user?.email],
+  );
+  const stage = application?.stage || 'applied';
+  const currentIndex = PIPELINE_STAGES.indexOf(stage);
+
+  useEffect(() => {
+    let active = true;
+    getCandidates()
+      .then((remoteCandidates) => {
+        if (!active) return;
+        setCandidates(remoteCandidates);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCandidates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -12,8 +39,24 @@ export function MyApplicationPage() {
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="font-semibold text-slate-200">Senior Frontend Engineer</h2>
-        <p className="text-sm text-slate-500">Applied June 10, 2026</p>
+        {application ? (
+          <>
+            <h2 className="font-semibold text-slate-200">{application.roleApplied}</h2>
+            <p className="text-sm text-slate-500">
+              Applied {new Date(application.appliedAt).toLocaleDateString()}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-semibold text-slate-200">No Salesforce application found</h2>
+            <p className="text-sm text-slate-500">
+              Apply to a role with the same email you used to sign in.
+            </p>
+            <Link to="/apply" className="mt-3 inline-block text-sm text-indigo-300 hover:underline">
+              Browse open jobs
+            </Link>
+          </>
+        )}
 
         <div className="mt-8 space-y-0">
           {PIPELINE_STAGES.filter((s) => s !== 'rejected').map((stage, i) => {

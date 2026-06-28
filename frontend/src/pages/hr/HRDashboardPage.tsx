@@ -1,50 +1,78 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { CandidateCardStack } from '../../components/dashboard/CandidateCardStack';
 import { PipelineStats } from '../../components/dashboard/PipelineStats';
 import { StageFilter } from '../../components/dashboard/StageFilter';
 import { mockCandidates, mockJobs } from '../../data/mockData';
-import { PIPELINE_STAGES, type PipelineStage } from '../../types';
+import { getCandidates, getJobs } from '../../lib/api';
+import { PIPELINE_STAGES, type Candidate, type JobOpening, type PipelineStage } from '../../types';
 
 export function HRDashboardPage() {
   const [stageFilter, setStageFilter] = useState<PipelineStage | 'all'>('all');
+  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+  const [jobs, setJobs] = useState<JobOpening[]>(mockJobs);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getCandidates(), getJobs()])
+      .then(([remoteCandidates, remoteJobs]) => {
+        if (!active) return;
+        setCandidates(remoteCandidates);
+        setJobs(remoteJobs);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const counts = useMemo(() => {
-    const result = { all: mockCandidates.length } as Record<PipelineStage | 'all', number>;
+    const result = { all: candidates.length } as Record<PipelineStage | 'all', number>;
     for (const stage of PIPELINE_STAGES) {
-      result[stage] = mockCandidates.filter((c) => c.stage === stage).length;
+      result[stage] = candidates.filter((c) => c.stage === stage).length;
     }
     return result;
-  }, []);
+  }, [candidates]);
 
   const filtered = useMemo(
     () =>
       stageFilter === 'all'
-        ? mockCandidates
-        : mockCandidates.filter((c) => c.stage === stageFilter),
-    [stageFilter],
+        ? candidates
+        : candidates.filter((c) => c.stage === stageFilter),
+    [stageFilter, candidates],
   );
 
-  const recentActivity = mockCandidates
-    .flatMap((c) =>
-      c.interviews.map((i) => ({
-        candidate: c.name,
-        action: i.outcome === 'pending' ? 'Interview scheduled' : 'Interview completed',
-        date: i.scheduledAt,
-      })),
-    )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  const recentActivity = useMemo(
+    () =>
+      candidates
+        .flatMap((c) =>
+          c.interviews.map((i) => ({
+            candidate: c.name,
+            action: i.outcome === 'pending' ? 'Interview scheduled' : 'Interview completed',
+            date: i.scheduledAt,
+          })),
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5),
+    [candidates],
+  );
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">HR Dashboard</h1>
-        <p className="mt-1 text-slate-500">Real-time view of your hiring pipeline</p>
+        <p className="mt-1 text-slate-500">
+          Real-time view of your hiring pipeline ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
+        </p>
       </div>
 
-      <PipelineStats jobs={mockJobs} candidates={mockCandidates} />
+      <PipelineStats jobs={jobs} candidates={candidates} />
 
       <StageFilter selected={stageFilter} onChange={setStageFilter} counts={counts} />
 

@@ -1,13 +1,38 @@
+import { useEffect, useState } from 'react';
 import { Plus, MapPin, Users } from 'lucide-react';
 import { mockJobs } from '../../data/mockData';
+import { getJobs } from '../../lib/api';
+import type { JobOpening } from '../../types';
 
 export function JobsPage() {
+  const [jobs, setJobs] = useState<JobOpening[]>(mockJobs);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
+
+  useEffect(() => {
+    let active = true;
+    getJobs()
+      .then((remoteJobs) => {
+        if (!active) return;
+        setJobs(remoteJobs);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Job Openings</h1>
-          <p className="mt-1 text-slate-500">Create and track open roles</p>
+          <p className="mt-1 text-slate-500">
+            Create and track open roles ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
+          </p>
         </div>
         <button
           type="button"
@@ -19,7 +44,7 @@ export function JobsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {mockJobs.map((job) => (
+        {jobs.map((job) => (
           <article
             key={job.id}
             className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-slate-700"

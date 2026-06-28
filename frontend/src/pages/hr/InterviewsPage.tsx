@@ -1,25 +1,52 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { mockCandidates } from '../../data/mockData';
+import { getInterviews } from '../../lib/api';
+import type { Interview } from '../../types';
 
-const allInterviews = mockCandidates.flatMap((c) =>
+const mockInterviews = mockCandidates.flatMap((c) =>
   c.interviews.map((i) => ({ ...i, candidateName: c.name, candidateId: c.id })),
 );
 
 export function InterviewsPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'pass' | 'fail'>('all');
+  const [interviews, setInterviews] = useState<Array<Interview & { candidateName?: string }>>(mockInterviews);
+  const [source, setSource] = useState<'salesforce' | 'mock'>('mock');
 
-  const filtered = allInterviews.filter((i) => {
-    if (filter === 'all') return true;
-    if (filter === 'pending') return i.outcome === 'pending' || !i.outcome;
-    return i.outcome === filter;
-  });
+  useEffect(() => {
+    let active = true;
+    getInterviews()
+      .then((remoteInterviews) => {
+        if (!active) return;
+        setInterviews(remoteInterviews);
+        setSource('salesforce');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource('mock');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filtered = useMemo(
+    () =>
+      interviews.filter((i) => {
+        if (filter === 'all') return true;
+        if (filter === 'pending') return i.outcome === 'pending' || !i.outcome;
+        return i.outcome === filter;
+      }),
+    [filter, interviews],
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Interview Tracking</h1>
-        <p className="mt-1 text-slate-500">Log feedback and outcomes per candidate</p>
+        <p className="mt-1 text-slate-500">
+          Log feedback and outcomes per candidate ({source === 'salesforce' ? 'Salesforce' : 'mock fallback'})
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -54,7 +81,7 @@ export function InterviewsPage() {
                     to={`/hr/candidates/${interview.candidateId}`}
                     className="font-medium text-indigo-300 hover:underline"
                   >
-                    {interview.candidateName}
+                    {interview.candidateName || 'Candidate'}
                   </Link>
                   <p className="text-sm text-slate-400">
                     {interview.type} · {interview.interviewer}
