@@ -1,12 +1,18 @@
 import { createServer } from "node:http";
 import {
+  bookSchedulerSlot,
   createApplication,
+  createInterview,
   createJob,
+  getCalendarInterviews,
   getCandidate,
   getCandidates,
   getInterviews,
+  getInterviewers,
   getJobs,
+  getMyApplications,
   getOnboardingTasks,
+  getSchedulerSlots,
   isSalesforceConfigured,
   updateCandidateStage,
   updateInterview,
@@ -26,7 +32,7 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
 
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return json(response, { ok: true, salesforceConfigured: isSalesforceConfigured() });
+      return json(response, { ok: true, salesforceConfigured: isSalesforceConfigured(), schedulerConfigured: false });
     }
 
     if (!isSalesforceConfigured()) {
@@ -45,6 +51,10 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/candidates") {
       return json(response, await getCandidates());
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/applications/me") {
+      return json(response, await getMyApplications(url.searchParams.get("email")));
     }
 
     const candidateMatch = url.pathname.match(/^\/api\/candidates\/([a-zA-Z0-9]{15,18})$/);
@@ -71,6 +81,14 @@ const server = createServer(async (request, response) => {
       return json(response, await getInterviews());
     }
 
+    if (request.method === "POST" && url.pathname === "/api/interviews") {
+      const body = await readJson(request);
+      if (!body.candidateId || !body.scheduledAt) {
+        return json(response, { error: "candidateId and scheduledAt are required." }, 400);
+      }
+      return json(response, await createInterview(body), 201);
+    }
+
     const interviewMatch = url.pathname.match(/^\/api\/interviews\/([a-zA-Z0-9]{15,18})$/);
     if (request.method === "PATCH" && interviewMatch) {
       const body = await readJson(request);
@@ -81,6 +99,30 @@ const server = createServer(async (request, response) => {
       return json(response, await getOnboardingTasks());
     }
 
+    if (request.method === "GET" && url.pathname === "/api/interviewers") {
+      return json(response, await getInterviewers());
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/calendar/interviews") {
+      return json(response, await getCalendarInterviews(url.searchParams.get("from"), url.searchParams.get("to")));
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/scheduler/slots") {
+      return json(
+        response,
+        await getSchedulerSlots({
+          interviewerId: url.searchParams.get("interviewerId"),
+          start: url.searchParams.get("start"),
+          end: url.searchParams.get("end"),
+        }),
+      );
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/scheduler/book") {
+      const body = await readJson(request);
+      return json(response, await bookSchedulerSlot(body), 201);
+    }
+
     return json(response, { error: "Not found." }, 404);
   } catch (error) {
     console.error(error);
@@ -89,7 +131,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, () => {
-  console.log(`Worknite Salesforce API listening on http://localhost:${port}`);
+  console.log(`HireForce Salesforce API listening on http://localhost:${port}`);
 });
 
 function setCors(response) {

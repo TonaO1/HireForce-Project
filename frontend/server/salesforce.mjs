@@ -27,6 +27,7 @@ export async function getJobs() {
     SELECT Id, Name, Job_Title__c, Status__c, Priority__c, Headcount__c, Target_Start_Date__c,
            Description__c, CreatedDate, Department__r.Name
     FROM Job_Opening__c
+    WHERE Status__c = 'Open'
     ORDER BY CreatedDate DESC
   `);
 
@@ -90,9 +91,16 @@ export async function getCandidates() {
     ORDER BY LastModifiedDate DESC
     LIMIT 100
   `);
-  const ids = records.map((record) => record.Id);
+  const cleanRecords = records.filter((record) => !isJunkCandidate(record));
+  const ids = cleanRecords.map((record) => record.Id);
   const interviews = await getInterviewsByApplicationIds(ids);
-  return records.map((record) => mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id)));
+  return cleanRecords.map((record) => mapCandidate(record, interviews.filter((item) => item.candidateId === record.Id)));
+}
+
+export async function getMyApplications(email) {
+  if (!email) return [];
+  const candidates = await getCandidates();
+  return candidates.filter((candidate) => candidate.email.toLowerCase() === String(email).toLowerCase());
 }
 
 export async function getCandidate(id) {
@@ -160,6 +168,7 @@ export async function getInterviews() {
            Interview_Type__c, Status__c, Interviewer__r.Name, Outcome__c, Score__c,
            Feedback__c, Strengths__c, Concerns__c, Evidence__c, CreatedDate
     FROM Interview__c
+    WHERE Candidate_Application__c != null
     ORDER BY Interview_Date__c DESC
     LIMIT 100
   `);
@@ -182,9 +191,97 @@ export async function updateInterview(id, input) {
     Strengths__c: input.strengths,
     Concerns__c: input.concerns,
     Evidence__c: input.evidence,
+    Interview_Date__c: input.scheduledAt,
   });
   await salesforceUpdate("Interview__c", payload);
   return getInterview(interviewId);
+}
+
+export async function createInterview(input) {
+  const candidateId = assertSalesforceId(input.candidateId);
+  const candidate = await getCandidate(candidateId);
+  if (!candidate) throw new Error("Candidate not found.");
+  const applicationId = await ensureApplicationForCandidate(candidate);
+  const result = await salesforceCreate(
+    "Interview__c",
+    compact({
+      Application__c: applicationId,
+      Candidate_Application__c: candidateId,
+      Interview_Date__c: input.scheduledAt,
+      Interview_Type__c: input.type || "Interview",
+      Status__c: input.status || "Scheduled",
+    }),
+  );
+  return getInterview(result.id);
+}
+
+export async function getInterviewers() {
+  const records = await salesforceQuery(`
+    SELECT Id, Name, Email
+    FROM User
+    WHERE IsActive = true
+    ORDER BY Name
+    LIMIT 20
+  `);
+  return records.map((record) => ({
+    id: record.Id,
+    name: record.Name,
+    email: record.Email,
+  }));
+}
+
+export async function getCalendarInterviews(from, to) {
+  const interviews = await getInterviews();
+  const fromTime = from ? new Date(from).getTime() : Date.now();
+  const toTime = to ? new Date(to).getTime() : fromTime + 14 * 86400000;
+  return interviews.filter((interview) => {
+    if (!interview.scheduledAt || interview.status === "Cancelled") return false;
+    const time = new Date(interview.scheduledAt).getTime();
+    return time >= fromTime && time <= toTime;
+  });
+}
+
+export async function getSchedulerSlots(input = {}) {
+  const interviewers = await getInterviewers();
+  const start = input.start ? new Date(input.start) : new Date();
+  start.setHours(0, 0, 0, 0);
+  const slots = [];
+  for (let day = 0; day < 7; day += 1) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + day);
+    for (const hour of [9, 10, 11, 14, 15, 16]) {
+      for (const interviewer of interviewers.slice(0, 2)) {
+        const slotStart = new Date(date);
+        slotStart.setHours(hour, 0, 0, 0);
+        const slotEnd = new Date(slotStart.getTime() + 45 * 60000);
+        slots.push({
+          start: slotStart.toISOString(),
+          end: slotEnd.toISOString(),
+          interviewerId: interviewer.id,
+          interviewerName: interviewer.name,
+        });
+      }
+    }
+  }
+  return { slots: slots.slice(0, 24), schedulerConfigured: false };
+}
+
+export async function bookSchedulerSlot(input) {
+  if (input.interviewId) {
+    return updateInterview(input.interviewId, {
+      scheduledAt: input.start,
+      status: "Scheduled",
+      durationMinutes: 45,
+    });
+  }
+  return createInterview({
+    candidateId: input.candidateId,
+    scheduledAt: input.start,
+    interviewerId: input.interviewerId,
+    type: input.type || "Interview",
+    durationMinutes: 45,
+    status: "Scheduled",
+  });
 }
 
 async function getInterview(id) {
@@ -200,15 +297,55 @@ async function getInterview(id) {
   return records[0] ? mapInterview(records[0]) : null;
 }
 
+async function ensureApplicationForCandidate(candidate) {
+  const talentCandidateId = await ensureTalentCandidate(candidate);
+  const records = await salesforceQuery(`
+    SELECT Id
+    FROM Application__c
+    WHERE Candidate__c = '${talentCandidateId}'
+    AND Job_Opening__c = '${candidate.jobId}'
+    LIMIT 1
+  `);
+  if (records[0]) return records[0].Id;
+  const created = await salesforceCreate("Application__c", {
+    Candidate__c: talentCandidateId,
+    Job_Opening__c: candidate.jobId,
+    Stage__c: toApplicationStage(candidate.stage),
+    Stage_Start_Date__c: today(),
+    Offer_Status__c: candidate.stage === "hired" ? "Accepted" : candidate.stage === "offer" ? "Sent" : "Not Started",
+  });
+  return created.id;
+}
+
+async function ensureTalentCandidate(candidate) {
+  const records = await salesforceQuery(`
+    SELECT Id
+    FROM Candidate__c
+    WHERE Email__c = '${escapeSoqlString(candidate.email)}'
+    LIMIT 1
+  `);
+  const payload = compact({
+    Name: candidate.name,
+    Email__c: candidate.email,
+  });
+  if (records[0]) {
+    await salesforceUpdate("Candidate__c", { Id: records[0].Id, ...payload });
+    return records[0].Id;
+  }
+  const created = await salesforceCreate("Candidate__c", payload);
+  return created.id;
+}
+
 export async function getOnboardingTasks() {
   const records = await salesforceQuery(`
     SELECT Id, Name, Task_Name__c, Candidate_Application__c, Candidate_Application__r.Name,
+           Candidate_Application__r.Email__c,
            Status__c, Due_Date__c, CreatedDate
     FROM Onboarding_Task__c
     ORDER BY Due_Date__c ASC
     LIMIT 100
   `);
-  return records.map(mapOnboardingTask);
+  return dedupeOnboardingTasks(records.filter((record) => !isJunkCandidate(record.Candidate_Application__r || {})).map(mapOnboardingTask));
 }
 
 async function getInterviewsByApplicationIds(ids) {
@@ -253,7 +390,7 @@ async function findDepartmentId(name) {
   }
 }
 
-async function salesforceQuery(soql) {
+export async function salesforceQuery(soql) {
   const auth = await salesforceAuth();
   const response = await fetch(
     `${auth.instanceUrl}/services/data/v${apiVersion()}/query?q=${encodeURIComponent(soql)}`,
@@ -264,7 +401,7 @@ async function salesforceQuery(soql) {
   return body.records || [];
 }
 
-async function salesforceCreate(objectName, data) {
+export async function salesforceCreate(objectName, data) {
   const auth = await salesforceAuth();
   const response = await fetch(`${auth.instanceUrl}/services/data/v${apiVersion()}/sobjects/${objectName}/`, {
     method: "POST",
@@ -279,7 +416,7 @@ async function salesforceCreate(objectName, data) {
   return body;
 }
 
-async function salesforceUpdate(objectName, data) {
+export async function salesforceUpdate(objectName, data) {
   const auth = await salesforceAuth();
   const { Id, ...fields } = data;
   const response = await fetch(`${auth.instanceUrl}/services/data/v${apiVersion()}/sobjects/${objectName}/${Id}`, {
@@ -379,6 +516,17 @@ function mapCandidate(record, interviews) {
   };
 }
 
+function isJunkCandidate(record) {
+  const email = String(record.Email__c || "").toLowerCase();
+  return (
+    email === "a@a.a" ||
+    email === "123@231.w" ||
+    email === "ibrahimiamen0@gmail.com" ||
+    email.startsWith("website-test-") ||
+    email.startsWith("hireforce-api-")
+  );
+}
+
 function mapInterview(record) {
   return {
     id: record.Id,
@@ -408,6 +556,16 @@ function mapOnboardingTask(record) {
   };
 }
 
+function dedupeOnboardingTasks(tasks) {
+  const seen = new Set();
+  return tasks.filter((task) => {
+    const key = `${task.candidateId}:${task.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function toFrontendStage(stage) {
   return {
     Applied: "applied",
@@ -426,6 +584,17 @@ function toSalesforceStage(stage) {
     interview: "Interview",
     offer: "Offer",
     hired: "Hired",
+    rejected: "Rejected",
+  }[stage] || "Applied";
+}
+
+function toApplicationStage(stage) {
+  return {
+    applied: "Applied",
+    screened: "Recruiter Screen",
+    interview: "Interview",
+    offer: "Final Interview",
+    hired: "Final Interview",
     rejected: "Rejected",
   }[stage] || "Applied";
 }

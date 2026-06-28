@@ -1,185 +1,196 @@
-import { useCallback, useState } from 'react';
-import { useData } from '../contexts/DataContext';
+import { useCallback, useEffect, useMemo, useState, type DependencyList } from 'react';
+import {
+  bookSchedulerSlot,
+  createInterview,
+  createJob,
+  getCalendarInterviews,
+  getCandidate,
+  getCandidates,
+  getInterviewers,
+  getInterviews,
+  getJobs,
+  getMyApplications,
+  getOnboardingTasks,
+  getSchedulerSlots,
+  submitApplication,
+  updateCandidateStage,
+  updateInterview,
+} from '../lib/api';
 import type {
   BookSchedulerInput,
+  Candidate,
   CreateInterviewInput,
   CreateJobInput,
+  Interview,
+  Interviewer,
+  JobOpening,
+  OnboardingTask,
   PipelineStage,
+  SchedulerSlot,
   SubmitApplicationInput,
 } from '../types';
 
-/** Mock-data hooks — no backend API calls. */
+const DATA_CHANGED = 'hireforce:data-changed';
 
-const NO_ERROR = null as Error | null;
-
-export function useJobs() {
-  const { jobs } = useData();
-  return { data: jobs, isLoading: false, error: NO_ERROR };
+interface QueryState<T> {
+  data: T | undefined;
+  isLoading: boolean;
+  error: Error | null;
 }
 
-export function useCreateJob() {
-  const { addJob } = useData();
-  const [isPending, setIsPending] = useState(false);
-  const mutateAsync = useCallback(
-    async (input: CreateJobInput) => {
-      setIsPending(true);
-      try {
-        return addJob(input);
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [addJob],
-  );
-  return { isPending, mutateAsync };
+function notifyDataChanged() {
+  window.dispatchEvent(new Event(DATA_CHANGED));
 }
 
-export function useCandidates() {
-  const { candidates } = useData();
-  return { data: candidates, isLoading: false, error: NO_ERROR };
+function useApiQuery<T>(
+  loader: () => Promise<T>,
+  deps: DependencyList,
+  enabled = true,
+): QueryState<T> {
+  const [data, setData] = useState<T>();
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [error, setError] = useState<Error | null>(null);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setVersion((current) => current + 1);
+    window.addEventListener(DATA_CHANGED, refresh);
+    return () => window.removeEventListener(DATA_CHANGED, refresh);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+    loader()
+      .then((result) => {
+        if (!active) return;
+        setData(result);
+      })
+      .catch((queryError) => {
+        if (!active) return;
+        setError(queryError instanceof Error ? queryError : new Error('API request failed.'));
+      })
+      .finally(() => {
+        if (!active) return;
+        setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, version, enabled]);
+
+  return { data, isLoading, error };
 }
 
-export function useCandidate(id: string | undefined) {
-  const { getCandidate } = useData();
-  const candidate = id ? getCandidate(id) : undefined;
-  return {
-    data: candidate,
-    isLoading: false,
-    error: id && !candidate ? new Error('Candidate not found.') : null,
-  };
-}
-
-export function useUpdateCandidateStage() {
-  const { updateCandidateStage, getCandidate } = useData();
-  const [isPending, setIsPending] = useState(false);
-  const mutateAsync = useCallback(
-    async ({ id, stage }: { id: string; stage: PipelineStage }) => {
-      setIsPending(true);
-      try {
-        updateCandidateStage(id, stage);
-        const candidate = getCandidate(id);
-        if (!candidate) throw new Error('Candidate not found.');
-        return candidate;
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [updateCandidateStage, getCandidate],
-  );
-  return { isPending, mutateAsync };
-}
-
-export function useSubmitApplication() {
-  const { applyToJob } = useData();
+function useMutation<TInput, TResult>(
+  action: (input: TInput) => Promise<TResult>,
+  options: { notify?: boolean; success?: boolean } = {},
+) {
   const [isPending, setIsPending] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const mutateAsync = useCallback(
-    async (input: SubmitApplicationInput) => {
+    async (input: TInput) => {
       setIsPending(true);
       setIsSuccess(false);
       try {
-        const result = applyToJob(input);
-        if (!result) throw new Error('Already applied or job not found.');
-        setIsSuccess(true);
+        const result = await action(input);
+        if (options.notify !== false) notifyDataChanged();
+        if (options.success) setIsSuccess(true);
         return result;
       } finally {
         setIsPending(false);
       }
     },
-    [applyToJob],
+    [action, options.notify, options.success],
   );
   return { isPending, isSuccess, mutateAsync };
 }
 
+export function useJobs() {
+  return useApiQuery<JobOpening[]>(getJobs, []);
+}
+
+export function useCreateJob() {
+  return useMutation<CreateJobInput, JobOpening>(createJob);
+}
+
+export function useCandidates() {
+  return useApiQuery<Candidate[]>(getCandidates, []);
+}
+
+export function useCandidate(id: string | undefined) {
+  return useApiQuery<Candidate>(() => getCandidate(id || ''), [id], Boolean(id));
+}
+
+export function useUpdateCandidateStage() {
+  return useMutation<{ id: string; stage: PipelineStage }, Candidate>(({ id, stage }) =>
+    updateCandidateStage(id, stage),
+  );
+}
+
+export function useSubmitApplication() {
+  return useMutation<SubmitApplicationInput, Candidate>(
+    (input) =>
+      submitApplication({
+        jobId: input.jobId,
+        name: input.name,
+        email: input.email,
+        phone: undefined,
+      }),
+    { success: true },
+  );
+}
+
 export function useMyApplications(email: string | undefined) {
-  const { candidates } = useData();
-  const applications = email ? candidates.filter((c) => c.email === email) : [];
-  return { data: applications, isLoading: false, error: NO_ERROR };
+  return useApiQuery<Candidate[]>(() => getMyApplications(email || ''), [email], Boolean(email));
 }
 
 export function useInterviews() {
-  const { getInterviews } = useData();
-  return { data: getInterviews(), isLoading: false, error: NO_ERROR };
+  return useApiQuery<Array<Interview & { candidateName?: string }>>(getInterviews, []);
 }
 
 export function useCreateInterview() {
-  const { createInterview } = useData();
-  const [isPending, setIsPending] = useState(false);
-  const mutateAsync = useCallback(
-    async (input: CreateInterviewInput) => {
-      setIsPending(true);
-      try {
-        return createInterview(input);
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [createInterview],
-  );
-  return { isPending, mutateAsync };
+  return useMutation<CreateInterviewInput, Interview>(createInterview);
 }
 
 export function useUpdateInterview() {
-  const { updateInterview } = useData();
-  const [isPending, setIsPending] = useState(false);
-  const mutateAsync = useCallback(
-    async ({
-      id,
-      input,
-    }: {
+  return useMutation<
+    {
       id: string;
       input: Parameters<typeof updateInterview>[1];
-    }) => {
-      setIsPending(true);
-      try {
-        return updateInterview(id, input);
-      } finally {
-        setIsPending(false);
-      }
     },
-    [updateInterview],
-  );
-  return { isPending, mutateAsync };
+    Interview
+  >(({ id, input }) => updateInterview(id, input));
 }
 
 export function useInterviewers() {
-  const { interviewers } = useData();
-  return { data: interviewers, isLoading: false, error: NO_ERROR };
+  return useApiQuery<Interviewer[]>(getInterviewers, []);
 }
 
 export function useCalendarInterviews(from?: string, to?: string) {
-  const { getCalendarInterviews } = useData();
-  return { data: getCalendarInterviews(from, to), isLoading: false, error: NO_ERROR };
+  return useApiQuery<Interview[]>(() => getCalendarInterviews(from, to), [from, to]);
 }
 
 export function useOnboardingTasks() {
-  const { onboardingTasks } = useData();
-  return { data: onboardingTasks, isLoading: false, error: NO_ERROR };
+  return useApiQuery<OnboardingTask[]>(getOnboardingTasks, []);
 }
 
-export function useSchedulerSlots(input: { start?: string; end?: string; enabled?: boolean }) {
-  const { getSchedulerSlots } = useData();
+export function useSchedulerSlots(input: { start?: string; end?: string; interviewerId?: string; enabled?: boolean }) {
   const enabled = input.enabled ?? true;
-  return {
-    data: enabled ? getSchedulerSlots(input) : undefined,
-    isLoading: false,
-    error: NO_ERROR,
-  };
+  const key = useMemo(() => JSON.stringify(input), [input]);
+  return useApiQuery<{ slots: SchedulerSlot[]; schedulerConfigured: boolean }>(
+    () => getSchedulerSlots(input),
+    [key],
+    enabled,
+  );
 }
 
 export function useBookSchedulerSlot() {
-  const { bookSchedulerSlot } = useData();
-  const [isPending, setIsPending] = useState(false);
-  const mutateAsync = useCallback(
-    async (input: BookSchedulerInput) => {
-      setIsPending(true);
-      try {
-        return bookSchedulerSlot(input);
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [bookSchedulerSlot],
-  );
-  return { isPending, mutateAsync };
+  return useMutation<BookSchedulerInput, Interview>(bookSchedulerSlot);
 }
