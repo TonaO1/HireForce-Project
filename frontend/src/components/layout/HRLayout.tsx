@@ -26,14 +26,16 @@ export function HRLayout() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900/80">
-        <div className="border-b border-slate-800 p-6">
+    <div className="flex min-h-screen bg-black text-white">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-white/15 bg-black">
+        <div className="border-b border-white/15 p-6">
           <div className="flex items-center gap-2">
-            <Users className="h-6 w-6 text-indigo-400" />
-            <span className="text-lg font-bold text-slate-100">HireForce</span>
+            <Users className="h-6 w-6 text-white" />
+            <span className="font-mono text-lg font-bold tracking-tight text-white">HireForce</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">HR Portal</p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
+            HR Portal
+          </p>
         </div>
 
         <nav className="flex-1 space-y-1 p-4">
@@ -43,10 +45,10 @@ export function HRLayout() {
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-indigo-500/15 text-indigo-300'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    ? 'bg-white text-black'
+                    : 'text-white/60 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
@@ -56,13 +58,13 @@ export function HRLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-slate-800 p-4">
-          <p className="truncate text-sm font-medium text-slate-300">{user?.name}</p>
-          <p className="truncate text-xs text-slate-500">{user?.email}</p>
+        <div className="border-t border-white/15 p-4">
+          <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+          <p className="truncate text-xs text-white/40">{user?.email}</p>
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-3 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-red-400"
+            className="mt-3 flex w-full items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white hover:text-black"
           >
             <LogOut className="h-4 w-4" />
             Sign out

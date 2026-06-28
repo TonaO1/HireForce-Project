@@ -9,6 +9,7 @@ export const mockJobs: JobOpening[] = [
     status: 'open',
     applicantCount: 14,
     description: 'Build delightful hiring experiences with React and TypeScript.',
+    createdAt: '2026-05-28',
   },
   {
     id: 'job-2',
@@ -18,6 +19,7 @@ export const mockJobs: JobOpening[] = [
     status: 'open',
     applicantCount: 9,
     description: 'Shape intuitive HR workflows and candidate-facing flows.',
+    createdAt: '2026-06-02',
   },
   {
     id: 'job-3',
@@ -27,6 +29,7 @@ export const mockJobs: JobOpening[] = [
     status: 'open',
     applicantCount: 6,
     description: 'Coordinate interviews and keep the pipeline moving.',
+    createdAt: '2026-06-09',
   },
   {
     id: 'job-4',
@@ -36,6 +39,7 @@ export const mockJobs: JobOpening[] = [
     status: 'draft',
     applicantCount: 0,
     description: 'Analyze hiring funnel metrics and pipeline health.',
+    createdAt: '2026-06-15',
   },
 ];
 

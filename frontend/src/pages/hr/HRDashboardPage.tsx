@@ -1,110 +1,184 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Activity } from 'lucide-react';
-import { CandidateCardStack } from '../../components/dashboard/CandidateCardStack';
-import { PipelineStats } from '../../components/dashboard/PipelineStats';
-import { StageFilter } from '../../components/dashboard/StageFilter';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
+import { InteractiveCanvas } from '../../components/workspace/InteractiveCanvas';
 import { mockCandidates, mockJobs } from '../../data/mockData';
-import { PIPELINE_STAGES, type PipelineStage } from '../../types';
+import { STAGE_LABELS } from '../../types';
+import type { Candidate, JobOpening } from '../../types';
 
-export function HRDashboardPage() {
-  const [stageFilter, setStageFilter] = useState<PipelineStage | 'all'>('all');
+const SKILLS_BY_ROLE: Record<string, string[]> = {
+  'Senior Frontend Engineer': ['React', 'TypeScript', 'CSS', 'Testing'],
+  'Product Designer': ['Figma', 'Prototyping', 'UX', 'Systems'],
+  'Recruiting Coordinator': ['ATS', 'Scheduling', 'Comms', 'Sourcing'],
+};
 
-  const counts = useMemo(() => {
-    const result = { all: mockCandidates.length } as Record<PipelineStage | 'all', number>;
-    for (const stage of PIPELINE_STAGES) {
-      result[stage] = mockCandidates.filter((c) => c.stage === stage).length;
-    }
-    return result;
-  }, []);
+function skillsFor(c: Candidate): string[] {
+  return SKILLS_BY_ROLE[c.roleApplied] ?? ['Communication', 'Ownership', 'Collaboration'];
+}
 
-  const filtered = useMemo(
-    () =>
-      stageFilter === 'all'
-        ? mockCandidates
-        : mockCandidates.filter((c) => c.stage === stageFilter),
-    [stageFilter],
-  );
+function lastUpdatedFor(c: Candidate): string {
+  const latest = c.interviews.map((i) => i.scheduledAt).sort().at(-1) ?? c.appliedAt;
+  return new Date(latest).toLocaleDateString();
+}
 
-  const recentActivity = mockCandidates
-    .flatMap((c) =>
-      c.interviews.map((i) => ({
-        candidate: c.name,
-        action: i.outcome === 'pending' ? 'Interview scheduled' : 'Interview completed',
-        date: i.scheduledAt,
-      })),
-    )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
-
+function JobCard({ job, onOpen }: { job: JobOpening; onOpen: () => void }) {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">HR Dashboard</h1>
-        <p className="mt-1 text-slate-500">Real-time view of your hiring pipeline</p>
+    <div className="flex h-full flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="truncate font-mono text-sm font-semibold leading-tight text-white">
+            {job.title}
+          </h3>
+          <p className="mt-0.5 truncate text-xs text-white/50">{job.department}</p>
+        </div>
+        <span className="shrink-0 rounded border border-white/30 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white/70">
+          {job.status}
+        </span>
       </div>
 
-      <PipelineStats jobs={mockJobs} candidates={mockCandidates} />
+      <div className="mt-3 flex items-center justify-between text-[11px] text-white/50">
+        <span>{job.applicantCount} applicants</span>
+        <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '—'}</span>
+      </div>
 
-      <StageFilter selected={stageFilter} onChange={setStageFilter} counts={counts} />
+      <div className="mt-auto pt-3">
+        <button
+          type="button"
+          data-no-drag
+          onClick={onOpen}
+          className="btn-mono btn-mono-solid w-full !px-3 !py-2 !text-xs"
+        >
+          Go to Job
+        </button>
+      </div>
+    </div>
+  );
+}
 
-      <div className="grid gap-8 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-            Candidate Pipeline
-          </h2>
-          <CandidateCardStack candidates={filtered} />
+function ApplicantCard({ candidate }: { candidate: Candidate }) {
+  return (
+    <div className="flex h-full flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="truncate font-mono text-sm font-semibold text-white">{candidate.name}</h3>
+          <p className="mt-0.5 text-xs text-white/50">{STAGE_LABELS[candidate.stage]}</p>
         </div>
-
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-              <Activity className="h-4 w-4 text-indigo-400" />
-              Recent Activity
-            </h3>
-            <ul className="mt-4 space-y-3">
-              {recentActivity.length === 0 ? (
-                <li className="text-sm text-slate-500">No recent activity</li>
-              ) : (
-                recentActivity.map((item, i) => (
-                  <li key={i} className="flex items-start justify-between text-sm">
-                    <div>
-                      <p className="text-slate-300">{item.candidate}</p>
-                      <p className="text-slate-500">{item.action}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-slate-600">
-                      {new Date(item.date).toLocaleDateString()}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
+        <div className="shrink-0 text-right">
+          <div className="font-mono text-lg font-semibold leading-none text-white">
+            {candidate.score ?? '—'}
           </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-            <h3 className="text-sm font-semibold text-slate-300">Quick Links</h3>
-            <div className="mt-3 flex flex-col gap-2">
-              <Link
-                to="/hr/jobs"
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-400 transition hover:border-indigo-500/40 hover:text-indigo-300"
-              >
-                Manage job openings →
-              </Link>
-              <Link
-                to="/hr/interviews"
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-400 transition hover:border-indigo-500/40 hover:text-indigo-300"
-              >
-                Log interview feedback →
-              </Link>
-              <Link
-                to="/hr/onboarding"
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-400 transition hover:border-indigo-500/40 hover:text-indigo-300"
-              >
-                View onboarding tasks →
-              </Link>
-            </div>
-          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-wider text-white/40">match</div>
         </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {skillsFor(candidate).slice(0, 4).map((s) => (
+          <span
+            key={s}
+            className="rounded border border-white/20 px-2 py-0.5 text-[10px] text-white/60"
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-auto flex items-center justify-between pt-3 text-[11px] text-white/40">
+        <span>updated {lastUpdatedFor(candidate)}</span>
+        <span className="font-mono uppercase tracking-wider">{candidate.stage}</span>
+      </div>
+    </div>
+  );
+}
+
+export function HRDashboardPage() {
+  const [activeJob, setActiveJob] = useState<JobOpening | null>(null);
+
+  const applicants = useMemo(
+    () => (activeJob ? mockCandidates.filter((c) => c.jobId === activeJob.id) : []),
+    [activeJob],
+  );
+
+  return (
+    <div className="flex h-[calc(100vh-7rem)] min-h-[520px] flex-col text-white">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <AnimatePresence mode="wait" initial={false}>
+          {activeJob ? (
+            <motion.div
+              key="applicants-header"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.2 }}
+            >
+              <h1 className="font-mono text-xl font-semibold tracking-tight">{activeJob.title}</h1>
+              <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.25em] text-white/40">
+                {applicants.length} applicants
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="jobs-header"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.2 }}
+            >
+              <h1 className="font-mono text-xl font-semibold tracking-tight">Jobs</h1>
+              <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.25em] text-white/40">
+                interactive workspace
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {activeJob && (
+          <button
+            type="button"
+            onClick={() => setActiveJob(null)}
+            className="btn-mono btn-mono-outline !px-4 !py-2 !text-xs"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Jobs
+          </button>
+        )}
+      </div>
+
+      <div className="relative flex-1 overflow-hidden rounded-2xl border border-white/15">
+        <AnimatePresence mode="wait" initial={false}>
+          {activeJob ? (
+            <motion.div
+              key={`applicants-${activeJob.id}`}
+              className="absolute inset-0"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+            >
+              <InteractiveCanvas
+                items={applicants}
+                cardWidth={252}
+                cardHeight={190}
+                renderCard={(c) => <ApplicantCard candidate={c} />}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="jobs"
+              className="absolute inset-0"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+            >
+              <InteractiveCanvas
+                items={mockJobs}
+                cardWidth={252}
+                cardHeight={176}
+                renderCard={(job) => <JobCard job={job} onOpen={() => setActiveJob(job)} />}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

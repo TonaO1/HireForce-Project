@@ -17,3 +17,25 @@ body {
 .card-perspective {
   perspective: 1200px;
 }
+
+@layer components {
+  .btn-mono {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-white px-6 py-3 text-sm font-medium tracking-wide transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-mono-solid {
+    @apply bg-white text-black hover:bg-black hover:text-white;
+  }
+  .btn-mono-outline {
+    @apply bg-black text-white hover:bg-white hover:text-black;
+  }
+}
+
+/* Subtle Warp/Codex-style grid that fades toward the edges. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 25%, transparent 72%);
+  mask-image: radial-gradient(ellipse at center, #000 25%, transparent 72%);
+}

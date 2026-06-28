@@ -29,6 +29,7 @@ export interface JobOpening {
   status: JobStatus;
   applicantCount: number;
   description: string;
+  createdAt?: string;
 }
 
 export interface Interview {
