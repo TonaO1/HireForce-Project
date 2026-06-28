@@ -32,14 +32,30 @@ export interface JobOpening {
   createdAt?: string;
 }
 
+export interface CreateJobInput {
+  title: string;
+  department?: string;
+  location?: string;
+  description?: string;
+  headcount?: number;
+  priority?: 'High' | 'Medium' | 'Low';
+  targetStartDate?: string;
+}
+
 export interface Interview {
   id: string;
   candidateId: string;
+  candidateName?: string;
   scheduledAt: string;
   interviewer: string;
   feedback?: string;
   outcome?: InterviewOutcome;
   type: string;
+  status?: string;
+  score?: number;
+  strengths?: string;
+  concerns?: string;
+  evidence?: string;
 }
 
 export interface Candidate {

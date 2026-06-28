@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import {
   createApplication,
+  createJob,
   getCandidate,
   getCandidates,
   getInterviews,
@@ -8,6 +9,7 @@ import {
   getOnboardingTasks,
   isSalesforceConfigured,
   updateCandidateStage,
+  updateInterview,
 } from "./salesforce.mjs";
 
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
@@ -33,6 +35,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/jobs") {
       return json(response, await getJobs());
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/jobs") {
+      const body = await readJson(request);
+      if (!body.title) return json(response, { error: "title is required." }, 400);
+      return json(response, await createJob(body), 201);
     }
 
     if (request.method === "GET" && url.pathname === "/api/candidates") {
@@ -61,6 +69,12 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/api/interviews") {
       return json(response, await getInterviews());
+    }
+
+    const interviewMatch = url.pathname.match(/^\/api\/interviews\/([a-zA-Z0-9]{15,18})$/);
+    if (request.method === "PATCH" && interviewMatch) {
+      const body = await readJson(request);
+      return json(response, await updateInterview(interviewMatch[1], body));
     }
 
     if (request.method === "GET" && url.pathname === "/api/onboarding") {

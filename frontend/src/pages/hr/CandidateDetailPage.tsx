@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, Mail, Star, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle2, Mail, Star } from 'lucide-react';
 import { StageBadge } from '../../components/candidate/StageBadge';
 import { StageStepper } from '../../components/candidate/StageStepper';
 import { mockCandidates } from '../../data/mockData';
@@ -43,7 +43,7 @@ export function CandidateDetailPage() {
           to="/hr"
           className="mt-4 inline-block text-sm text-white/80 underline-offset-4 hover:text-white hover:underline"
         >
-          ← Back to dashboard
+          Back to dashboard
         </Link>
       </div>
     );
@@ -85,9 +85,7 @@ export function CandidateDetailPage() {
       {showOnboardingToast && (
         <div className="flex items-center gap-3 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-white">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
-          <p className="text-sm">
-            Salesforce Flow triggered onboarding tasks for {candidate.name}
-          </p>
+          <p className="text-sm">Salesforce Flow triggered onboarding tasks for {candidate.name}</p>
         </div>
       )}
 
@@ -166,26 +164,53 @@ export function CandidateDetailPage() {
                   <div>
                     <p className="font-medium text-white">{interview.type}</p>
                     <p className="text-sm text-white/50">
-                      with {interview.interviewer} ·{' '}
-                      {new Date(interview.scheduledAt).toLocaleString()}
+                      with {interview.interviewer} - {new Date(interview.scheduledAt).toLocaleString()}
                     </p>
+                    {interview.score != null && (
+                      <p className="text-xs text-white/40">Score {interview.score}/100</p>
+                    )}
                   </div>
-                  {interview.outcome && (
-                    <span
-                      className={
-                        interview.outcome === 'pass'
-                          ? 'badge-strong capitalize'
-                          : interview.outcome === 'fail'
-                            ? 'badge-dim capitalize'
-                            : 'badge capitalize'
-                      }
-                    >
-                      {interview.outcome}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <span className="badge capitalize">{interview.status || 'Scheduled'}</span>
+                    {interview.outcome && (
+                      <span
+                        className={
+                          interview.outcome === 'pass'
+                            ? 'badge-strong capitalize'
+                            : interview.outcome === 'fail'
+                              ? 'badge-dim capitalize'
+                              : 'badge capitalize'
+                        }
+                      >
+                        {interview.outcome}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {interview.feedback && (
                   <p className="mt-2 text-sm text-white/60">{interview.feedback}</p>
+                )}
+                {(interview.strengths || interview.concerns || interview.evidence) && (
+                  <dl className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+                    {interview.strengths && (
+                      <div>
+                        <dt className="text-xs uppercase tracking-wider text-white/35">Strengths</dt>
+                        <dd className="mt-1 text-white/65">{interview.strengths}</dd>
+                      </div>
+                    )}
+                    {interview.concerns && (
+                      <div>
+                        <dt className="text-xs uppercase tracking-wider text-white/35">Concerns</dt>
+                        <dd className="mt-1 text-white/65">{interview.concerns}</dd>
+                      </div>
+                    )}
+                    {interview.evidence && (
+                      <div>
+                        <dt className="text-xs uppercase tracking-wider text-white/35">Evidence</dt>
+                        <dd className="mt-1 text-white/65">{interview.evidence}</dd>
+                      </div>
+                    )}
+                  </dl>
                 )}
               </li>
             ))}

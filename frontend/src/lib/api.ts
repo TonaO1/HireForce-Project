@@ -1,9 +1,16 @@
-import type { Candidate, Interview, JobOpening, OnboardingTask, PipelineStage } from '../types';
+import type { Candidate, CreateJobInput, Interview, JobOpening, OnboardingTask, PipelineStage } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function getJobs(): Promise<JobOpening[]> {
   return request('/api/jobs');
+}
+
+export async function createJob(input: CreateJobInput): Promise<JobOpening> {
+  return request('/api/jobs', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export async function getCandidates(): Promise<Candidate[]> {
@@ -35,6 +42,16 @@ export async function submitApplication(input: {
 
 export async function getInterviews(): Promise<Array<Interview & { candidateName?: string }>> {
   return request('/api/interviews');
+}
+
+export async function updateInterview(
+  id: string,
+  input: Partial<Pick<Interview, 'status' | 'outcome' | 'score' | 'feedback' | 'strengths' | 'concerns' | 'evidence'>>,
+): Promise<Interview> {
+  return request(`/api/interviews/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 }
 
 export async function getOnboardingTasks(): Promise<OnboardingTask[]> {
